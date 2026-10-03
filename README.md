@@ -13,11 +13,13 @@ the native desktop client for [District AI](https://www.distronode.com/district-
 brew install distronode-corporation/tap/district-ai
 ```
 
-That taps this repository and installs the cask in one step. To tap it on its own first:
+That taps this repository and installs the cask in one step. Homebrew loads casks from
+a tap it does not ship only once you trust them, and naming the cask in full, as above,
+is what trusts it. If you tap first, keep the full name when you install:
 
 ```sh
 brew tap distronode-corporation/tap
-brew install --cask district-ai
+brew install --cask distronode-corporation/tap/district-ai
 ```
 
 The cask installs the same file as the app's GitHub Releases: a universal (Apple silicon

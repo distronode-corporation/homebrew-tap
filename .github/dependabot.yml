@@ -5,11 +5,6 @@ version: 2
 # a pinned SHA never moves on its own; this entry turns each pin into a pull request
 # and rewrites both the SHA and the comment.
 #
-# Homebrew/actions publishes no releases or tags, so setup-homebrew is pinned to a
-# commit on its `main` branch (`# main`). With no version to compare, whether
-# Dependabot offers a newer commit for it is not proven yet; if no pull request for
-# it ever arrives, bump it by hand to the branch's newest commit.
-#
 # `cooldown` holds a version update back until the release is a week old, so a
 # compromised publish that is yanked within days never reaches a pull request here.
 # It does not delay security updates.

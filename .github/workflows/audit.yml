@@ -40,26 +40,37 @@ jobs:
     name: brew style and audit
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      TAP: distronode-corporation/tap
     steps:
-      # No actions/checkout: in a `homebrew-*` repository, setup-homebrew fetches the
-      # commit itself into Homebrew's tap directory and links GITHUB_WORKSPACE to it,
-      # emptying the workspace first. While the repository is private that fetch needs
-      # a token; this job's token can only read. The action removes it from the git
-      # configuration in its post step.
-      - uses: Homebrew/actions/setup-homebrew@9f17989bd508c794353d974d1756f23b0bcf10c1 # main
-        id: setup
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          token: ${{ github.token }}
+          persist-credentials: false
 
-      - name: brew style and brew audit
-        env:
-          TAP: ${{ steps.setup.outputs.tap-name }}
+      # Homebrew's own setup-homebrew action is not on the organization's allowed
+      # actions list, so this does what it does for a tap by hand, with the Homebrew
+      # the ubuntu-24.04 image already carries (installed, not on PATH): update it to
+      # the current release, so the audit rules are today's, then link this checkout
+      # in as the tap. Homebrew loads a non-official tap's casks only once the tap is
+      # trusted, which `brew audit` needs.
+      - name: Set up Homebrew and tap this checkout
         run: |
           set -euo pipefail
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          brew update --quiet
           brew --version
-          # Proves Homebrew sees this repository as the tap before anything is
-          # judged, so an empty run below means "no casks", not "no tap".
+          tap_dir="$(brew --repository)/Library/Taps/distronode-corporation/homebrew-tap"
+          mkdir -p "$(dirname "$tap_dir")"
+          ln -s "$GITHUB_WORKSPACE" "$tap_dir"
+          brew trust --tap "$TAP"
+          # Proves Homebrew sees this checkout as the tap before anything is judged,
+          # so an empty run below means "no casks", not "no tap".
           brew tap-info "$TAP"
+
+      - name: brew style and brew audit
+        run: |
+          set -euo pipefail
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
           shopt -s nullglob
           casks=(Casks/*.rb)
           if (( ${#casks[@]} == 0 )); then
