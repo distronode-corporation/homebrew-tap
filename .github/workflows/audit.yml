@@ -150,7 +150,9 @@ jobs:
           export LC_ALL=C
           pattern='\xe2\x80[\x93\x94]'
           printf 'en \xe2\x80\x93 and em \xe2\x80\x94\n' > "$RUNNER_TEMP/dash-control.txt"
-          if ! git grep --no-index -qP "$pattern" -- "$RUNNER_TEMP/dash-control.txt"; then
+          # From outside the checkout: `--no-index` refuses a path outside the
+          # repository it runs in.
+          if ! (cd "$RUNNER_TEMP" && git grep --no-index -qP "$pattern" -- dash-control.txt); then
             echo "::error::The dash pattern no longer matches its planted control."
             exit 1
           fi
