@@ -79,7 +79,11 @@ jobs:
           fi
           printf 'Cask: %s\n' "${casks[@]}"
           brew style "$TAP"
-          brew audit --strict --tap "$TAP"
+          # `--os all --arch all` is load-bearing. On Linux a plain `--tap` audit
+          # skips a cask that depends on macOS and exits 0 having checked nothing
+          # (measured with Homebrew 7.0.7: a cask planted with two audit errors
+          # passed without it and failed with it).
+          brew audit --strict --os all --arch all --tap "$TAP"
 
   # Static analysis of these workflows: template injection, over-broad token
   # permissions, credential persistence, cache poisoning, unpinned actions.

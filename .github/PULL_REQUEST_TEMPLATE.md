@@ -15,7 +15,7 @@
      and the hygiene check. -->
 
 - [ ] `brew style distronode-corporation/tap`
-- [ ] `brew audit --strict --tap distronode-corporation/tap`
+- [ ] `brew audit --strict --os all --arch all --tap distronode-corporation/tap`
 - [ ] For a cask change: `brew install --cask distronode-corporation/tap/district-ai`
       on a Mac, the app launched, and `brew uninstall --cask --zap district-ai`
       left nothing behind
