@@ -1,0 +1,27 @@
+version: 2
+
+# Every `uses:` in .github/workflows is pinned to a commit SHA with a version comment.
+# That is right for supply-chain safety and wrong for noticing a security fix, because
+# a pinned SHA never moves on its own; this entry turns each pin into a pull request
+# and rewrites both the SHA and the comment.
+#
+# Homebrew/actions publishes no releases or tags, so setup-homebrew is pinned to a
+# commit on its `main` branch (`# main`). With no version to compare, whether
+# Dependabot offers a newer commit for it is not proven yet; if no pull request for
+# it ever arrives, bump it by hand to the branch's newest commit.
+#
+# `cooldown` holds a version update back until the release is a week old, so a
+# compromised publish that is yanked within days never reaches a pull request here.
+# It does not delay security updates.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      # One pull request for the routine bumps. A major version usually needs a
+      # workflow edit, so it is deliberately left on its own.
+      actions-minor:
+        update-types: [minor, patch]
