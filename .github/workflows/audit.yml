@@ -8,7 +8,8 @@ name: Audit
 #   it still sets Homebrew up and taps this repository, so the plumbing is proven
 #   before the first cask needs it, and then says there is nothing to check.
 # - `macos`: what only a Mac can check, for every cask: the online audit with the
-#   download's signature and notarisation (`--signing`), livecheck against the app's
+#   download (Homebrew 7 removed `--signing`; codesign and spctl check the
+#   installed app below), livecheck against the app's
 #   update feed, a real install, the app launching, and `uninstall --zap`. With no
 #   cask it says so and succeeds.
 # - `zizmor`: static analysis of these workflows.
@@ -233,14 +234,14 @@ jobs:
           brew trust --tap "$TAP"
           brew tap-info "$TAP"
 
-      - name: Audit online, with signing
+      - name: Audit online
         if: steps.casks.outputs.names != ''
         env:
           NAMES: ${{ steps.casks.outputs.names }}
         run: |
           set -euo pipefail
           for name in $NAMES; do
-            brew audit --strict --online --signing --cask "$TAP/$name"
+            brew audit --strict --online --cask "$TAP/$name"
           done
 
       # A cask whose livecheck cannot read its feed reports an error here; one that is
