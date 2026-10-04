@@ -200,6 +200,10 @@ jobs:
       TAP: distronode-corporation/tap
       HOMEBREW_NO_AUTO_UPDATE: "1"
       HOMEBREW_NO_ANALYTICS: "1"
+      # The online audit and livecheck call the GitHub API; unauthenticated, a shared
+      # macOS runner IP has 60 requests an hour and the first cask's audit hit it.
+      # The job's own read-only token raises that; no personal token is involved.
+      HOMEBREW_GITHUB_API_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
