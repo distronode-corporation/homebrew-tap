@@ -1,0 +1,191 @@
+name: Bump district-ai
+
+# Proposes Casks/district-ai.rb for the latest GitHub Release of District AI for macOS
+# (distronode-corporation/district-macos), once a day and on demand.
+#
+# - No release yet, or the cask already names the latest one: a notice, and success.
+# - Otherwise it downloads the release's .dmg and SHA256SUMS and refuses to go on
+#   unless the .dmg's SHA-256 equals both the SHA256SUMS entry and the digest GitHub
+#   records for the asset, and its build provenance attestation verifies (built by
+#   district-macos's release.yml from the release's tag, on a GitHub-hosted runner).
+#   Then it writes the cask (.github/scripts/district-ai-cask.sh), pushes it to a
+#   `bump/district-ai-<version>-<build>` branch, and opens a pull request.
+#
+# ⛔ GITHUB_TOKEN TRIGGERS NO WORKFLOW BY A PUSH OR A PULL REQUEST, so the pull request's
+# required checks would never report. The exception is workflow_dispatch: this workflow
+# dispatches audit.yml on the branch, and that run's jobs (`brew style and audit`,
+# `hygiene`, `gitleaks`, `zizmor`, the macOS install check) report on the branch's
+# commit, which is the commit the pull request needs them on.
+#
+# ⚠️ OPENING THE PULL REQUEST NEEDS "Allow GitHub Actions to create and approve pull
+# requests" in the organization's Actions settings, which is off. While it is off this
+# workflow still pushes the branch and runs the checks, then FAILS with a link that
+# opens the pull request in one click; it keeps failing daily until one is open.
+on:
+  schedule:
+    - cron: "23 7 * * *" # daily, clear of audit.yml's and scorecard.yml's Monday runs
+  workflow_dispatch:
+
+permissions: {}
+
+# One bump at a time; a newer run waits rather than racing for the same branch.
+concurrency:
+  group: bump-district-ai
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  bump:
+    name: bump district-ai
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write # push the bump branch
+      pull-requests: write # open the pull request
+      actions: write # dispatch audit.yml on the branch
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE: distronode-corporation/district-macos
+      CASK: Casks/district-ai.rb
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Latest release
+        id: release
+        run: |
+          set -euo pipefail
+          if ! latest="$(gh api "repos/$SOURCE/releases/latest" 2>"$RUNNER_TEMP/latest.err")"; then
+            if grep -q 'HTTP 404' "$RUNNER_TEMP/latest.err"; then
+              echo "::notice::$SOURCE has no published release yet. Nothing to bump."
+              echo "proceed=false" >>"$GITHUB_OUTPUT"
+              exit 0
+            fi
+            cat "$RUNNER_TEMP/latest.err"
+            exit 1
+          fi
+          tag="$(jq -r .tag_name <<<"$latest")"
+          dmg="$(jq -r '[.assets[].name | select(test("^DistrictAI-[0-9.]+-[0-9]+\\.dmg$"))] | if length == 1 then .[0] else "" end' <<<"$latest")"
+          if ! [[ "$dmg" =~ ^DistrictAI-([0-9]+(\.[0-9]+){1,2})-([0-9]+)\.dmg$ ]]; then
+            echo "::error::$SOURCE $tag does not carry exactly one DistrictAI-<version>-<build>.dmg."
+            exit 1
+          fi
+          version="${BASH_REMATCH[1]}"
+          build="${BASH_REMATCH[3]}"
+          if [ "$tag" != "v$version" ]; then
+            echo "::error::$dmg is version $version, but the release's tag is $tag."
+            exit 1
+          fi
+          digest="$(jq -r --arg n "$dmg" '.assets[] | select(.name == $n) | .digest' <<<"$latest")"
+          if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::GitHub records no sha256 digest for $dmg ('$digest')."
+            exit 1
+          fi
+          current="$(sed -n 's/^  version "\(.*\)"$/\1/p' "$CASK" 2>/dev/null || true)"
+          echo "latest: $tag, $dmg; cask: ${current:-none}"
+          if [ "$current" = "$version,$build" ]; then
+            echo "::notice::$CASK already names $version,$build. Nothing to bump."
+            echo "proceed=false" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          {
+            echo "proceed=true"
+            echo "tag=$tag"
+            echo "dmg=$dmg"
+            echo "version=$version"
+            echo "build=$build"
+            echo "digest=${digest#sha256:}"
+          } >>"$GITHUB_OUTPUT"
+
+      - name: Download and verify the .dmg
+        id: verify
+        if: steps.release.outputs.proceed == 'true'
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+          DMG: ${{ steps.release.outputs.dmg }}
+          DIGEST: ${{ steps.release.outputs.digest }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/dl"
+          cd "$RUNNER_TEMP/dl"
+          gh release download "$TAG" --repo "$SOURCE" --pattern "$DMG" --pattern SHA256SUMS
+          sha="$(sha256sum "$DMG" | cut -d' ' -f1)"
+          listed="$(awk -v n="$DMG" '$2 == n { print $1 }' SHA256SUMS)"
+          if [ "$sha" != "$listed" ]; then
+            echo "::error::$DMG is $sha, but SHA256SUMS lists '$listed'."
+            exit 1
+          fi
+          if [ "$sha" != "$DIGEST" ]; then
+            echo "::error::$DMG is $sha, but GitHub records the asset as $DIGEST."
+            exit 1
+          fi
+          gh attestation verify "$DMG" --repo "$SOURCE" \
+            --signer-workflow "$SOURCE/.github/workflows/release.yml" \
+            --source-ref "refs/tags/$TAG" --deny-self-hosted-runners
+          echo "sha256=$sha" >>"$GITHUB_OUTPUT"
+          echo "$DMG: sha256 $sha matches SHA256SUMS and the asset digest; attestation verified"
+
+      - name: Write the cask and push the branch
+        id: branch
+        if: steps.release.outputs.proceed == 'true'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          BUILD: ${{ steps.release.outputs.build }}
+          SHA256: ${{ steps.verify.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          branch="bump/district-ai-$VERSION-$BUILD"
+          echo "branch=$branch" >>"$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo "$branch already exists; not pushing it again."
+            echo "pushed=false" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          .github/scripts/district-ai-cask.sh "$VERSION" "$BUILD" "$SHA256" >"$CASK"
+          git diff --stat
+          git switch --quiet -c "$branch"
+          git add "$CASK"
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit --quiet -m "district-ai $VERSION,$BUILD" \
+            -m "From $SOURCE's release v$VERSION: sha256 checked against SHA256SUMS and the asset digest, provenance attestation verified."
+          # The token reaches git as a header for this one push, never the stored config.
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push --quiet origin "HEAD:refs/heads/$branch"
+          echo "pushed=true" >>"$GITHUB_OUTPUT"
+
+      - name: Run the checks on the branch
+        if: steps.branch.outputs.pushed == 'true'
+        env:
+          BRANCH: ${{ steps.branch.outputs.branch }}
+        run: gh workflow run audit.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"
+
+      - name: Open the pull request
+        if: steps.release.outputs.proceed == 'true'
+        env:
+          BRANCH: ${{ steps.branch.outputs.branch }}
+          VERSION: ${{ steps.release.outputs.version }}
+          BUILD: ${{ steps.release.outputs.build }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json url --jq '.[0].url // empty')"
+          if [ -n "$existing" ]; then
+            echo "::notice::A pull request for $BRANCH is already open: $existing"
+            exit 0
+          fi
+          body="Bumps \`district-ai\` to $VERSION,$BUILD from [$SOURCE $TAG](https://github.com/$SOURCE/releases/tag/$TAG). bump.yml checked the .dmg's SHA-256 against SHA256SUMS and the asset digest and verified its provenance attestation; audit.yml was dispatched on this branch for the required checks and the macOS install."
+          if url="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" \
+            --title "district-ai $VERSION,$BUILD" --body "$body" 2>"$RUNNER_TEMP/pr.err")"; then
+            echo "::notice::Opened $url"
+            gh pr merge "$url" --auto --squash || echo "::warning::Auto-merge was not enabled on $url; merge it once its checks pass."
+            exit 0
+          fi
+          cat "$RUNNER_TEMP/pr.err"
+          link="https://github.com/$GITHUB_REPOSITORY/compare/main...$BRANCH?expand=1"
+          echo "::error::Could not open the pull request (GitHub Actions may not create pull requests in this organization). Open it here: $link"
+          echo "**Open the pull request:** $link" >>"$GITHUB_STEP_SUMMARY"
+          exit 1

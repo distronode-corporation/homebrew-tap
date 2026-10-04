@@ -7,13 +7,20 @@ name: Audit
 # - `brew`: `brew style` and `brew audit` over every cask in Casks/. With no cask yet
 #   it still sets Homebrew up and taps this repository, so the plumbing is proven
 #   before the first cask needs it, and then says there is nothing to check.
+# - `macos`: what only a Mac can check, for every cask: the online audit with the
+#   download's signature and notarisation (`--signing`), livecheck against the app's
+#   update feed, a real install, the app launching, and `uninstall --zap`. With no
+#   cask it says so and succeeds.
 # - `zizmor`: static analysis of these workflows.
 # - `gitleaks`: secrets anywhere in the history, not just the tip.
 # - `hygiene`: the org's repository rules (no em or en dashes) and the shape of Casks/.
 #
-# Everything is on ubuntu-24.04. macOS runner minutes are billed at ten times the
-# Linux rate while the repository is private, and nothing here needs a Mac: Homebrew
-# on Linux styles and audits casks.
+# Everything but `macos` is on ubuntu-24.04: Homebrew on Linux styles and audits casks.
+# The repository is public, so the macOS job costs no minutes.
+#
+# bump.yml dispatches this workflow on its bump branch, because a pull request it
+# opens with GITHUB_TOKEN triggers nothing; the jobs then report on that branch's
+# commit, which is where the pull request's required checks look.
 on:
   push:
     branches: [main]
@@ -183,3 +190,118 @@ jobs:
             exit 1
           fi
           echo "Casks/ holds only casks."
+
+  macos:
+    name: macOS install and zap
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      TAP: distronode-corporation/tap
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_ANALYTICS: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Casks
+        id: casks
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          casks=(Casks/*.rb)
+          if (( ${#casks[@]} == 0 )); then
+            echo "No casks under Casks/, so there is nothing to install."
+            echo "names=" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          names="$(for c in "${casks[@]}"; do basename "$c" .rb; done | tr '\n' ' ')"
+          echo "Casks: $names"
+          echo "names=$names" >>"$GITHUB_OUTPUT"
+
+      # The image's Homebrew, updated to the current release, with this checkout linked
+      # in as the tap, as in the `brew` job.
+      - name: Set up Homebrew and tap this checkout
+        if: steps.casks.outputs.names != ''
+        run: |
+          set -euo pipefail
+          brew update --quiet
+          brew --version
+          tap_dir="$(brew --repository)/Library/Taps/distronode-corporation/homebrew-tap"
+          mkdir -p "$(dirname "$tap_dir")"
+          ln -s "$GITHUB_WORKSPACE" "$tap_dir"
+          brew trust --tap "$TAP"
+          brew tap-info "$TAP"
+
+      - name: Audit online, with signing
+        if: steps.casks.outputs.names != ''
+        env:
+          NAMES: ${{ steps.casks.outputs.names }}
+        run: |
+          set -euo pipefail
+          for name in $NAMES; do
+            brew audit --strict --online --signing --cask "$TAP/$name"
+          done
+
+      # A cask whose livecheck cannot read its feed reports an error here; one that is
+      # merely behind the feed is a warning (bump.yml proposes the newer version).
+      - name: livecheck
+        if: steps.casks.outputs.names != ''
+        env:
+          NAMES: ${{ steps.casks.outputs.names }}
+        run: |
+          set -euo pipefail
+          for name in $NAMES; do
+            result="$(brew livecheck --cask --json "$TAP/$name")"
+            echo "$result"
+            if jq -e '.[0] | has("error")' <<<"$result" >/dev/null; then
+              echo "::error::livecheck could not read $name's feed."
+              exit 1
+            fi
+            current="$(jq -r '.[0].version.current' <<<"$result")"
+            latest="$(jq -r '.[0].version.latest' <<<"$result")"
+            if [ "$current" != "$latest" ]; then
+              echo "::warning::$name is $current in the cask; its feed offers $latest."
+            fi
+          done
+
+      # Install, launch each app the cask installs (in the background), quit it the
+      # way the cask's `uninstall quit:` does, then remove everything with --zap and
+      # check the apps are gone.
+      - name: Install, launch and zap
+        if: steps.casks.outputs.names != ''
+        env:
+          NAMES: ${{ steps.casks.outputs.names }}
+        run: |
+          set -euo pipefail
+          for name in $NAMES; do
+            brew install --cask "$TAP/$name"
+            info="$(brew info --cask --json=v2 "$TAP/$name")"
+            mapfile -t apps < <(jq -r '.casks[0].artifacts[] | select(has("app")) | .app[] | strings' <<<"$info")
+            mapfile -t ids < <(jq -r '.casks[0].artifacts[] | select(has("uninstall")) | .uninstall[] | .quit // empty | if type == "array" then .[] else . end' <<<"$info")
+            (( ${#apps[@]} > 0 )) || { echo "::error::$name installs no app."; exit 1; }
+            for app in "${apps[@]}"; do
+              path="/Applications/$app"
+              [ -d "$path" ] || { echo "::error::$name did not install $path."; exit 1; }
+              codesign --verify --deep --strict "$path"
+              spctl --assess --type execute -vv "$path"
+              executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$path/Contents/Info.plist")"
+              open -g "$path"
+              for _ in $(seq 1 30); do
+                pgrep -x "$executable" >/dev/null && break
+                sleep 1
+              done
+              pgrep -x "$executable" >/dev/null || { echo "::error::$app did not start."; exit 1; }
+              sleep 5
+              pgrep -x "$executable" >/dev/null || { echo "::error::$app started, then exited within 5 seconds."; exit 1; }
+              echo "$app is running"
+            done
+            for id in "${ids[@]}"; do
+              osascript -e "tell application id \"$id\" to quit" || true
+            done
+            brew uninstall --cask --zap "$TAP/$name"
+            for app in "${apps[@]}"; do
+              [ ! -e "/Applications/$app" ] || { echo "::error::/Applications/$app is still there after uninstall --zap."; exit 1; }
+            done
+            echo "$name: installed, launched, quit and zapped"
+          done

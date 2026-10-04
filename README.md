@@ -41,8 +41,11 @@ The cask says so with `auto_updates true`, which means:
 - The version in the cask follows the releases, but an installed app is never held
   back to it: an app that has updated itself is newer than the cask, which is expected.
 
-To remove it, `brew uninstall --cask district-ai`. Add `--zap` to remove the app's
-preferences and caches too.
+To remove it, `brew uninstall --cask district-ai`. Add `--zap` to remove what only this
+download leaves behind, Sparkle's update cache. The app's own settings and data live in
+its sandbox container, `~/Library/Containers/com.distronode.district`, which the Mac App
+Store build of the same app shares, so `--zap` leaves them in place; delete that folder
+yourself once neither build is installed.
 
 ## Without an account with us
 
@@ -57,7 +60,9 @@ use them with, so we are asking before we build anything:
 | Path | What it is |
 | --- | --- |
 | `Casks/` | The casks. Empty until the first macOS release. |
-| `.github/workflows/audit.yml` | `brew style` and `brew audit` on every cask, zizmor on the workflows, gitleaks over the whole history, and a hygiene check. |
+| `.github/workflows/audit.yml` | `brew style` and `brew audit` on every cask, zizmor on the workflows, gitleaks over the whole history, a hygiene check, and on macOS the online audit with `--signing`, `brew livecheck`, an install, a launch and `uninstall --zap`. |
+| `.github/workflows/bump.yml` | Daily: proposes the cask for the latest district-macos release, after checking the `.dmg` against `SHA256SUMS`, the release's asset digest and its provenance attestation. |
+| `.github/scripts/district-ai-cask.sh` | Writes `Casks/district-ai.rb`; the one place the cask's text lives. |
 | `.github/workflows/scorecard.yml` | OpenSSF Scorecard. It runs once the repository is public. |
 
 The app's source, its build and its releases live in
