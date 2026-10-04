@@ -282,8 +282,11 @@ jobs:
           for name in $NAMES; do
             brew install --cask "$TAP/$name"
             info="$(brew info --cask --json=v2 "$TAP/$name")"
-            mapfile -t apps < <(jq -r '.casks[0].artifacts[] | select(has("app")) | .app[] | strings' <<<"$info")
-            mapfile -t ids < <(jq -r '.casks[0].artifacts[] | select(has("uninstall")) | .uninstall[] | .quit // empty | if type == "array" then .[] else . end' <<<"$info")
+            # macOS ships bash 3.2, which has no mapfile.
+            apps=()
+            while IFS= read -r line; do apps+=("$line"); done < <(jq -r '.casks[0].artifacts[] | select(has("app")) | .app[] | strings' <<<"$info")
+            ids=()
+            while IFS= read -r line; do ids+=("$line"); done < <(jq -r '.casks[0].artifacts[] | select(has("uninstall")) | .uninstall[] | .quit // empty | if type == "array" then .[] else . end' <<<"$info")
             (( ${#apps[@]} > 0 )) || { echo "::error::$name installs no app."; exit 1; }
             for app in "${apps[@]}"; do
               path="/Applications/$app"
@@ -301,7 +304,7 @@ jobs:
               pgrep -x "$executable" >/dev/null || { echo "::error::$app started, then exited within 5 seconds."; exit 1; }
               echo "$app is running"
             done
-            for id in "${ids[@]}"; do
+            for id in ${ids[@]+"${ids[@]}"}; do
               osascript -e "tell application id \"$id\" to quit" || true
             done
             brew uninstall --cask --zap "$TAP/$name"
