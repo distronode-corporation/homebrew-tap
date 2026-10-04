@@ -273,8 +273,10 @@ jobs:
       # Install, launch each app the cask installs (in the background), quit it the
       # way the cask's `uninstall quit:` does, then remove everything with --zap and
       # check the apps are gone.
+      # A hang (a dialog nobody can click) fails here in minutes, not at the job's 30.
       - name: Install, launch and zap
         if: steps.casks.outputs.names != ''
+        timeout-minutes: 10
         env:
           NAMES: ${{ steps.casks.outputs.names }}
         run: |
@@ -285,8 +287,6 @@ jobs:
             # macOS ships bash 3.2, which has no mapfile.
             apps=()
             while IFS= read -r line; do apps+=("$line"); done < <(jq -r '.casks[0].artifacts[] | select(has("app")) | .app[] | strings' <<<"$info")
-            ids=()
-            while IFS= read -r line; do ids+=("$line"); done < <(jq -r '.casks[0].artifacts[] | select(has("uninstall")) | .uninstall[] | .quit // empty | if type == "array" then .[] else . end' <<<"$info")
             (( ${#apps[@]} > 0 )) || { echo "::error::$name installs no app."; exit 1; }
             for app in "${apps[@]}"; do
               path="/Applications/$app"
@@ -294,18 +294,16 @@ jobs:
               codesign --verify --deep --strict "$path"
               spctl --assess --type execute -vv "$path"
               executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$path/Contents/Info.plist")"
-              open -g "$path"
-              for _ in $(seq 1 30); do
-                pgrep -x "$executable" >/dev/null && break
-                sleep 1
-              done
-              pgrep -x "$executable" >/dev/null || { echo "::error::$app did not start."; exit 1; }
-              sleep 5
-              pgrep -x "$executable" >/dev/null || { echo "::error::$app started, then exited within 5 seconds."; exit 1; }
+              # The binary itself, not `open`: on a runner `open` waits on the
+              # first-launch quarantine prompt, which nobody can answer (the job
+              # hung to its timeout twice on 2026-10-04 after spctl accepted it).
+              "$path/Contents/MacOS/$executable" >/dev/null 2>&1 &
+              pid=$!
+              sleep 10
+              kill -0 "$pid" 2>/dev/null || { echo "::error::$app exited within 10 seconds of launch."; exit 1; }
               echo "$app is running"
-            done
-            for id in ${ids[@]+"${ids[@]}"}; do
-              osascript -e "tell application id \"$id\" to quit" || true
+              kill -TERM "$pid"
+              wait "$pid" 2>/dev/null || true
             done
             brew uninstall --cask --zap "$TAP/$name"
             for app in "${apps[@]}"; do
