@@ -42,15 +42,19 @@ brew install --cask distronode-corporation/tap/district-ai
 brew uninstall --cask --zap district-ai
 ```
 
-Check that the app launched, and that `--zap` left nothing of the app's own behind.
+Check that the app launched, and that `--zap` removed Sparkle's update cache
+(`~/Library/Caches/com.distronode.district/org.sparkle-project.Sparkle`). It leaves the
+app's sandbox container on purpose: the Mac App Store build of the same app shares it.
 Say which macOS version and which chip (Apple silicon or Intel) you ran it on.
 
 ## Versions and checksums
 
-Casks are meant to be bumped by automation from district-macos releases. That workflow
-is planned and not in this repository yet; until it is, a maintainer bumps the cask by
-hand, and once it is, a bump by hand should be rare. Either way the `sha256` is computed
-from the release's own `.dmg`, downloaded from its GitHub Release:
+Casks are bumped by automation from district-macos releases:
+[`bump.yml`](.github/workflows/bump.yml) runs daily, checks the latest release's `.dmg`
+against `SHA256SUMS`, the asset digest and its provenance attestation, and proposes the
+cask with [`district-ai-cask.sh`](.github/scripts/district-ai-cask.sh). A bump by hand
+should be rare. Either way the `sha256` is computed from the release's own `.dmg`,
+downloaded from its GitHub Release:
 
 ```sh
 shasum -a 256 DistrictAI-<version>-<build>.dmg

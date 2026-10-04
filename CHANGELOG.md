@@ -18,3 +18,9 @@ day it landed.
   OpenSSF Scorecard badge and the standard "Contributing, security and conduct" and
   "License and trademarks" sections, and states the install commands as working only
   once the cask exists.
+- `bump.yml`: proposes `Casks/district-ai.rb` for each new district-macos release once
+  its `.dmg` matches `SHA256SUMS` and the asset digest and its attestation verifies,
+  and dispatches `audit.yml` on the branch so the pull request's checks report.
+- `audit.yml`: a macOS job that, for every cask, runs the online audit with
+  `--signing`, `brew livecheck`, installs it, launches the app and removes it with
+  `uninstall --zap`.
