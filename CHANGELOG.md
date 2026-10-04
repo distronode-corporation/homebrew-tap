@@ -13,3 +13,8 @@ day it landed.
 - The tap: README, licence, security policy, code of conduct, and the audit workflow
   (`brew style` and `brew audit` on every cask, zizmor, gitleaks and a hygiene check).
   No casks yet; `district-ai` arrives with the first release of District AI for macOS.
+- The org's public-repo standard files: CONTRIBUTING.md, `.github/SUPPORT.md`, a
+  cask bug report form and an issue config with blank issues off; the README gains the
+  OpenSSF Scorecard badge and the standard "Contributing, security and conduct" and
+  "License and trademarks" sections, and states the install commands as working only
+  once the cask exists.
