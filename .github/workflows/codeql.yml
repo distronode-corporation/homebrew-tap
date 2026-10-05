@@ -1,0 +1,64 @@
+name: CodeQL
+
+# Code scanning in ADVANCED setup, the same shape as the `actions` job in district-ios,
+# district-macos and district-core-swift. One language: `actions` reads the workflow files
+# themselves (template injection, over-broad token permissions, untrusted checkouts) and
+# needs no build.
+#
+# No `ruby` leg: Casks/ holds declarative cask DSL (a version, a checksum, a URL and the
+# install stanzas), with no data flow for CodeQL's Ruby queries to follow. `brew style`
+# and `brew audit --strict` in audit.yml are the checks that fit it.
+#
+# The `!github.event.repository.private` guard matters only if the repository is ever
+# private again: code scanning is not available to a private repository on the free plan,
+# so the upload would fail. `schedule` carries `repository` in its payload too, so the
+# weekly run is guarded the same way.
+on:
+  push:
+    branches: [main]
+    # The workflows are all this job reads. A push that touches none of them has
+    # nothing new for it to analyse.
+    paths:
+      - '.github/workflows/**'
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, so new queries in a CodeQL release reach code that has not changed.
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+# Nothing at the top level; the one job below asks for exactly what it uses.
+permissions: {}
+
+# Per ref and per trigger. Only pull requests cancel in flight: a superseded PR analysis
+# is waste, a superseded main or weekly analysis is the record for that commit.
+concurrency:
+  group: codeql-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  actions:
+    name: Analyze (actions)
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      security-events: write # upload the results
+      contents: read # check out the code
+      actions: read # read this run's workflow details
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          languages: actions
+          build-mode: none
+          queries: security-extended
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          category: '/language:actions'

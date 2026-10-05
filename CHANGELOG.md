@@ -24,3 +24,6 @@ day it landed.
 - `audit.yml`: a macOS job that, for every cask, runs the online audit with
   `--signing`, `brew livecheck`, installs it, launches the app and removes it with
   `uninstall --zap`.
+- `codeql.yml`: CodeQL code scanning of the workflows (`actions`, security-extended) on
+  pushes to main that change them, on pull requests and weekly. No `ruby` leg: a cask
+  is declarative DSL, which `brew style` and `brew audit` already check.

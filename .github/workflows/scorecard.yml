@@ -5,9 +5,9 @@ name: Scorecard
 # scanning as SARIF and are published to the public Scorecard API. Same shape as
 # district-ios and district-linux.
 #
-# Skipped while the repository is private: publishing needs a public repository, and
-# uploading SARIF to code scanning needs GitHub Code Security on a private one. The
-# job starts running by itself once the repository is public.
+# The `!github.event.repository.private` guard matters only if the repository is ever
+# private again: publishing needs a public repository, and uploading SARIF to code
+# scanning needs GitHub Code Security on a private one.
 #
 # Not on pull requests: scorecard-action documents that trigger as experimental, and
 # publishing needs `id-token: write`, which means nothing on a pull request.
