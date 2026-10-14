@@ -2,17 +2,12 @@
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/distronode-corporation/homebrew-tap/badge)](https://scorecard.dev/viewer/?uri=github.com/distronode-corporation/homebrew-tap)
 
-The [Homebrew](https://brew.sh) tap for Distronode's macOS apps. It will carry one cask,
-`district-ai`: [District AI for macOS](https://github.com/distronode-corporation/district-macos),
-the native desktop client for [District AI](https://www.distronode.com/district-ai).
+The [Homebrew](https://brew.sh) tap for Distronode's macOS apps. It carries one cask,
+`district-ai`: [District AI for Mac](https://github.com/distronode-corporation/district-macos),
+the native desktop client for [District AI](https://www.distronode.com/district-ai). The
+cask follows the app's GitHub Releases.
 
-> **The tap is empty for now.** The `district-ai` cask arrives with the first
-> GitHub Release of District AI for macOS. Until then the commands below do not work:
-> `brew install` reports that no cask by that name exists.
-
-## Install (once the cask exists)
-
-When the first release is out and `Casks/district-ai.rb` is in this repository:
+## Install
 
 ```sh
 brew install distronode-corporation/tap/district-ai
@@ -38,7 +33,7 @@ The app updates itself. It checks Distronode's update feed with
 [Sparkle](https://sparkle-project.org), and every update is signed, so the app installs
 only an update Distronode published.
 
-The cask will say so with `auto_updates true`, which means:
+The cask says so with `auto_updates true`, which means:
 
 - `brew upgrade` leaves District AI alone, because the app is already keeping itself
   current. `brew upgrade --greedy` (or `--greedy-auto-updates`) reinstalls it from the
@@ -54,7 +49,7 @@ yourself once neither build is installed.
 
 ## Without an account with us
 
-Today District AI for macOS needs a District AI account to sign in. We want the
+Today District AI for Mac needs a District AI account to sign in. We want the
 District AI apps to work without an account with us too. We have not worked out what
 that looks like or whether it can work, and the answer depends on what people would
 use them with, so we are asking before we build anything:
@@ -64,8 +59,8 @@ use them with, so we are asking before we build anything:
 
 | Path | What it is |
 | --- | --- |
-| `Casks/` | The casks. Empty until the first GitHub Release of District AI for macOS. |
-| `.github/workflows/audit.yml` | `brew style` and `brew audit` on every cask, zizmor on the workflows, gitleaks over the whole history, a hygiene check, and on macOS the online audit with `--signing`, `brew livecheck`, an install, a launch and `uninstall --zap`. |
+| `Casks/` | The casks: `district-ai.rb`, District AI for Mac. |
+| `.github/workflows/audit.yml` | `brew style` and `brew audit` on every cask, zizmor on the workflows, gitleaks over the whole history, a hygiene check, and on macOS the online audit with the download, `brew livecheck`, an install, a launch and `uninstall --zap`. |
 | `.github/workflows/bump.yml` | Daily: proposes the cask for the latest district-macos release, after checking the `.dmg` against `SHA256SUMS`, the release's asset digest and its provenance attestation. |
 | `.github/scripts/district-ai-cask.sh` | Writes `Casks/district-ai.rb`; the one place the cask's text lives. |
 | `.github/workflows/scorecard.yml` | OpenSSF Scorecard, the result behind the badge above. |

@@ -1,6 +1,6 @@
 # Getting help
 
-This is the Homebrew tap for [District AI for macOS](https://github.com/distronode-corporation/district-macos),
+This is the Homebrew tap for [District AI for Mac](https://github.com/distronode-corporation/district-macos),
 the desktop client for [District AI](https://www.distronode.com/district-ai). Where to go
 depends on what you are asking about.
 
