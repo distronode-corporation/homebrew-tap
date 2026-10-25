@@ -4,4 +4,6 @@
 # "Require review from Code Owners" turned on; on its own it is a request, not a
 # gate. A handle here without write access to the repository is silently ignored
 # by GitHub (no error, no review request), so check access before adding one.
-* @distronode-com
+# @seandean approves every change: the account that writes a pull request (usually
+# @distronode-com) can never approve it, so the owner must be a different person.
+* @seandean
