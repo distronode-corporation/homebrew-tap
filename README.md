@@ -1,3 +1,9 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/distronode-logo-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset=".github/assets/distronode-logo-light.png">
+  <img alt="Distronode" src=".github/assets/distronode-logo-light.png" width="220">
+</picture>
+
 # Distronode Homebrew tap
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/distronode-corporation/homebrew-tap/badge)](https://scorecard.dev/viewer/?uri=github.com/distronode-corporation/homebrew-tap)
