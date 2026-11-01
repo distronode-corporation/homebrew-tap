@@ -10,6 +10,7 @@ day it landed.
 
 ### Changed
 
+- The README opens with the Distronode logo, in a light and a dark version.
 - README: the cask exists and is at 2.0.1,20042, so the install commands work; the app is
   named District AI for Mac.
 
