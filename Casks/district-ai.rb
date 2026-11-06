@@ -1,6 +1,6 @@
 cask "district-ai" do
-  version "3.1.0,20088"
-  sha256 "72b25d93117513758aed032933f0f8f0091452d35d8b658ebe4f00f430be79ba"
+  version "3.3.0,20102"
+  sha256 "420881909e012ca7f9a58fec9934f35c96733accb8cfaae1c99f8bc451b93702"
 
   url "https://github.com/distronode-corporation/district-macos/releases/download/v#{version.csv.first}/DistrictAI-#{version.csv.first}-#{version.csv.second}.dmg"
   name "District AI"
