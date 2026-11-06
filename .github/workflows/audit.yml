@@ -19,9 +19,10 @@ name: Audit
 # Everything but `macos` is on ubuntu-24.04: Homebrew on Linux styles and audits casks.
 # The repository is public, so the macOS job costs no minutes.
 #
-# bump.yml dispatches this workflow on its bump branch, because a pull request it
-# opens with GITHUB_TOKEN triggers nothing; the jobs then report on that branch's
-# commit, which is where the pull request's required checks look.
+# bump.yml and bump-bridgewatch.yml dispatch this workflow on their bump branches,
+# because a pull request they open with GITHUB_TOKEN triggers nothing; the jobs then
+# report on that branch's commit, which is where the pull request's required checks
+# look.
 on:
   push:
     branches: [main]

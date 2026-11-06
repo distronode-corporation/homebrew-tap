@@ -8,7 +8,20 @@ day it landed.
 
 ## [Unreleased]
 
+### Added
+
+- `bump-bridgewatch.yml` and `bridgewatch-cask.sh`: the pipeline for a second cask,
+  `bridgewatch`. It proposes `Casks/bridgewatch.rb` for each new bridgewatch release once
+  its universal `.dmg` matches the asset digest GitHub records and its provenance
+  attestation verifies (bridgewatch publishes no `SHA256SUMS`), and dispatches
+  `audit.yml` on the branch so the pull request's checks report. The cask itself lands
+  with its first bump.
+
 ### Changed
+
+- README and CONTRIBUTING describe both casks: bridgewatch has no updater (so no
+  `auto_updates`), and its 1.2.0 `.dmg` is signed but not notarised while the app inside
+  it is notarised and stapled.
 
 - The README opens with the Distronode logo, in a light and a dark version.
 - README: the cask exists and is at 2.0.1,20042, so the install commands work; the app is

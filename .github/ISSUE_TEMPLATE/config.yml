@@ -1,6 +1,6 @@
 # No blank issues: everything goes through the structured bug report form, or one of
 # the links below. The tracker is for problems installing, upgrading or removing the
-# cask; bugs in the app itself go to district-macos (see .github/SUPPORT.md).
+# casks; bugs in an app itself go to its repository (see .github/SUPPORT.md).
 blank_issues_enabled: false
 contact_links:
   - name: README
@@ -9,9 +9,12 @@ contact_links:
   - name: Questions and ideas
     url: https://github.com/distronode-corporation/homebrew-tap/discussions
     about: Ask a question or suggest an idea in Discussions.
-  - name: A bug in the app itself
+  - name: A bug in District AI for Mac itself
     url: https://github.com/distronode-corporation/district-macos/issues
     about: The app's source and releases live in district-macos. Report app bugs there.
+  - name: A bug in bridgewatch itself
+    url: https://github.com/distronode-corporation/bridgewatch/issues
+    about: The app's source and releases live in bridgewatch. Report app bugs there.
   - name: Security report
     url: https://github.com/distronode-corporation/homebrew-tap/security/advisories/new
     about: Please do not open a public issue for a vulnerability. Report it privately here (see SECURITY.md).

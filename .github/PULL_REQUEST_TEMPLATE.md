@@ -16,8 +16,8 @@
 
 - [ ] `brew style distronode-corporation/tap`
 - [ ] `brew audit --strict --os all --arch all --tap distronode-corporation/tap`
-- [ ] For a cask change: `brew install --cask distronode-corporation/tap/district-ai`
-      on a Mac, the app launched, and `brew uninstall --cask --zap district-ai`
+- [ ] For a cask change: `brew install --cask distronode-corporation/tap/<cask>`
+      on a Mac, the app launched, and `brew uninstall --cask --zap <cask>`
       left nothing behind
 - [ ] For a version bump: the `sha256` was computed from the release's own `.dmg`
       (`shasum -a 256`), not copied from somewhere else
