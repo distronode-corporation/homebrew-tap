@@ -4,10 +4,11 @@ Thanks for helping. The [README](README.md) covers what the tap is and how to in
 from it. This file is the rules a change has to meet.
 
 This repository holds casks, which are recipes: a download URL, the SHA-256 that
-download must have, and how to install and remove the app. The app itself, its build
-and its releases live in
-[district-macos](https://github.com/distronode-corporation/district-macos). A bug in the
-app goes there, not here.
+download must have, and how to install and remove the app. Each app, its build and its
+releases live in its own repository:
+[district-macos](https://github.com/distronode-corporation/district-macos) for
+`district-ai` and [bridgewatch](https://github.com/distronode-corporation/bridgewatch)
+for `bridgewatch`. A bug in an app goes there, not here.
 
 ## How a cask change is proposed
 
@@ -37,27 +38,41 @@ CI cannot install a macOS app, so a change to what a cask installs or removes al
 a real run on a Mac:
 
 ```sh
-brew install --cask distronode-corporation/tap/district-ai
+brew install --cask distronode-corporation/tap/<cask>
 # launch the app once, then
-brew uninstall --cask --zap district-ai
+brew uninstall --cask --zap <cask>
 ```
 
-Check that the app launched, and that `--zap` removed Sparkle's update cache
-(`~/Library/Caches/com.distronode.district/org.sparkle-project.Sparkle`). It leaves the
-app's sandbox container on purpose: the Mac App Store build of the same app shares it.
+Check that the app launched, and that `--zap` removed what the cask lists:
+
+- `district-ai`: Sparkle's update cache
+  (`~/Library/Caches/com.distronode.district/org.sparkle-project.Sparkle`). It leaves the
+  app's sandbox container on purpose: the Mac App Store build of the same app shares it.
+- `bridgewatch`: `~/Library/Application Support/bridgewatch`,
+  `~/Library/Logs/bridgewatch` and, if "Launch at login" was on,
+  `~/Library/LaunchAgents/bridgewatch.plist`.
+
 Say which macOS version and which chip (Apple silicon or Intel) you ran it on.
 
 ## Versions and checksums
 
-Casks are bumped by automation from district-macos releases:
-[`bump.yml`](.github/workflows/bump.yml) runs daily, checks the latest release's `.dmg`
-against `SHA256SUMS`, the asset digest and its provenance attestation, and proposes the
-cask with [`district-ai-cask.sh`](.github/scripts/district-ai-cask.sh). A bump by hand
-should be rare. Either way the `sha256` is computed from the release's own `.dmg`,
-downloaded from its GitHub Release:
+Casks are bumped by automation from their apps' releases, one workflow per cask:
+
+- `district-ai`: [`bump.yml`](.github/workflows/bump.yml) runs daily, checks the latest
+  district-macos release's `.dmg` against `SHA256SUMS`, the asset digest and its
+  provenance attestation, and proposes the cask with
+  [`district-ai-cask.sh`](.github/scripts/district-ai-cask.sh).
+- `bridgewatch`: [`bump-bridgewatch.yml`](.github/workflows/bump-bridgewatch.yml) runs
+  daily, checks the latest bridgewatch release's `.dmg` against the asset digest and its
+  provenance attestation (bridgewatch publishes no `SHA256SUMS`), and proposes the cask
+  with [`bridgewatch-cask.sh`](.github/scripts/bridgewatch-cask.sh).
+
+A bump by hand should be rare. Either way the `sha256` is computed from the release's
+own `.dmg`, downloaded from its GitHub Release:
 
 ```sh
 shasum -a 256 DistrictAI-<version>-<build>.dmg
+shasum -a 256 bridgewatch_<version>_universal.dmg
 ```
 
 Never copy a checksum from anywhere else, and never use `sha256 :no_check`. A cask
@@ -90,8 +105,9 @@ under their own name; there is no CLA and no sign-off requirement.
 Use the bug report form for a problem installing, upgrading or removing the cask.
 Questions and ideas go to
 [Discussions](https://github.com/distronode-corporation/homebrew-tap/discussions), and a
-problem with the app itself goes to
-[district-macos's issues](https://github.com/distronode-corporation/district-macos/issues).
+problem with an app itself goes to its own issues
+([district-macos](https://github.com/distronode-corporation/district-macos/issues) or
+[bridgewatch](https://github.com/distronode-corporation/bridgewatch/issues)).
 For anything security-relevant, do not open an issue; see
 [SECURITY.md](.github/SECURITY.md).
 

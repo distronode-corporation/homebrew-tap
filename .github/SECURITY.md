@@ -36,6 +36,8 @@ Out of scope:
 
 - Vulnerabilities in the District AI app itself. Report those privately in
   [district-macos](https://github.com/distronode-corporation/district-macos/security/advisories/new).
+- Vulnerabilities in bridgewatch itself. Report those privately in
+  [bridgewatch](https://github.com/distronode-corporation/bridgewatch/security/advisories/new).
 - Vulnerabilities in the District AI service. Report those privately to the contact
   published in <https://www.distronode.com/.well-known/security.txt>.
 - Homebrew's own security model. Report those to
