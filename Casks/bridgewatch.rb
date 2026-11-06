@@ -1,6 +1,6 @@
 cask "bridgewatch" do
-  version "1.2.0"
-  sha256 "6c10ffdf83566875784773ddead3500998cd8419974209eb355518df23d113bf"
+  version "1.3.0"
+  sha256 "962224c36045d3af9c3d7bf5987ce1035e51c7d586cdc25e593cfd10fda8fcbb"
 
   url "https://github.com/distronode-corporation/bridgewatch/releases/download/v#{version}/bridgewatch_#{version}_universal.dmg"
   name "bridgewatch"
