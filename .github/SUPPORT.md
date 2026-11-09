@@ -1,17 +1,20 @@
 # Getting help
 
 This is the Homebrew tap for [District AI for Mac](https://github.com/distronode-corporation/district-macos),
-the desktop client for [District AI](https://www.distronode.com/district-ai), and for
+the desktop client for [District AI](https://www.distronode.com/district-ai), for
 [bridgewatch](https://github.com/distronode-corporation/bridgewatch), a tray monitor for
-GitLab CI and GitHub Actions. Where to go depends on what you are asking about.
+GitLab CI and GitHub Actions, and for
+[worldinmotion](https://github.com/distronode-corporation/worldinmotion)'s `wim`
+command. Where to go depends on what you are asking about.
 
 - **A question about District AI, the product** (your account, a phone number, billing,
   the service's behaviour): <https://www.distronode.com/support>. This repository is the
   cask, not the product desk.
-- **A bug in an app itself:** its own Issues,
-  [district-macos](https://github.com/distronode-corporation/district-macos/issues) or
-  [bridgewatch](https://github.com/distronode-corporation/bridgewatch/issues).
-- **A problem installing, upgrading or removing the app through Homebrew:** [this
+- **A bug in an app or tool itself:** its own Issues,
+  [district-macos](https://github.com/distronode-corporation/district-macos/issues),
+  [bridgewatch](https://github.com/distronode-corporation/bridgewatch/issues) or
+  [worldinmotion](https://github.com/distronode-corporation/worldinmotion/issues).
+- **A problem installing, upgrading or removing it through Homebrew:** [this
   repository's Issues](https://github.com/distronode-corporation/homebrew-tap/issues),
   with the bug report form. Redact anything private before you paste it.
 - **A question or an idea about the tap** ("how do I…", "would you take a change

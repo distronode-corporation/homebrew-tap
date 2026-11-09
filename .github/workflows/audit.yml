@@ -4,22 +4,26 @@ name: Audit
 # week so that a check whose answer changes without a push (a new Homebrew audit rule,
 # a release URL that stopped resolving) still reports:
 #
-# - `brew`: `brew style` and `brew audit` over every cask in Casks/. With no cask yet
-#   it still sets Homebrew up and taps this repository, so the plumbing is proven
-#   before the first cask needs it, and then says there is nothing to check.
+# - `brew`: `brew style` and `brew audit` over every cask in Casks/ and every formula in
+#   Formula/. With neither it still sets Homebrew up and taps this repository, so the
+#   plumbing is proven, and then says there is nothing to check.
+# - `linux`: for every formula, a real install, `brew test` and an uninstall, on Linux.
 # - `macos`: what only a Mac can check, for every cask: the online audit with the
 #   download (Homebrew 7 removed `--signing`; codesign and spctl check the
 #   installed app below), livecheck against the app's
-#   update feed, a real install, the app launching, and `uninstall --zap`. With no
-#   cask it says so and succeeds.
+#   update feed, a real install, the app launching, and `uninstall --zap`. For every
+#   formula: the online audit, livecheck, a real install, `brew test` and an
+#   uninstall. With neither it says so and succeeds.
 # - `zizmor`: static analysis of these workflows.
 # - `gitleaks`: secrets anywhere in the history, not just the tip.
-# - `hygiene`: the org's repository rules (no em or en dashes) and the shape of Casks/.
+# - `hygiene`: the org's repository rules (no em or en dashes) and the shape of Casks/
+#   and Formula/.
 #
-# Everything but `macos` is on ubuntu-24.04: Homebrew on Linux styles and audits casks.
-# The repository is public, so the macOS job costs no minutes.
+# Everything but `macos` is on ubuntu-24.04: Homebrew on Linux styles and audits casks
+# and formulae. The repository is public, so the macOS job costs no minutes.
 #
-# bump.yml and bump-bridgewatch.yml dispatch this workflow on their bump branches,
+# bump.yml, bump-bridgewatch.yml and bump-worldinmotion.yml dispatch this workflow on
+# their bump branches,
 # because a pull request they open with GITHUB_TOKEN triggers nothing; the jobs then
 # report on that branch's commit, which is where the pull request's required checks
 # look.
@@ -82,17 +86,87 @@ jobs:
           eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
           shopt -s nullglob
           casks=(Casks/*.rb)
-          if (( ${#casks[@]} == 0 )); then
-            echo "No casks under Casks/, so there is nothing to style or audit."
+          formulae=(Formula/*.rb)
+          if (( ${#casks[@]} + ${#formulae[@]} == 0 )); then
+            echo "No casks under Casks/ and no formulae under Formula/, so there is nothing to style or audit."
             exit 0
           fi
-          printf 'Cask: %s\n' "${casks[@]}"
+          (( ${#casks[@]} == 0 )) || printf 'Cask: %s\n' "${casks[@]}"
+          (( ${#formulae[@]} == 0 )) || printf 'Formula: %s\n' "${formulae[@]}"
           brew style "$TAP"
           # `--os all --arch all` is load-bearing. On Linux a plain `--tap` audit
           # skips a cask that depends on macOS and exits 0 having checked nothing
           # (measured with Homebrew 7.0.7: a cask planted with two audit errors
           # passed without it and failed with it).
           brew audit --strict --os all --arch all --tap "$TAP"
+          # Each formula by name as well, so a formula is audited even if a future
+          # `--tap` audit skipped it the way it once skipped casks.
+          for f in "${formulae[@]}"; do
+            brew audit --strict --os all --arch all --formula "$TAP/$(basename "$f" .rb)"
+          done
+
+  # A formula installs and runs on Linux too (Homebrew on Linux), so each one is
+  # installed, tested with its own `test do` block and removed here, as on macOS below.
+  linux:
+    name: Linux install and test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      TAP: distronode-corporation/tap
+      HOMEBREW_NO_ANALYTICS: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Formulae
+        id: formulae
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          formulae=(Formula/*.rb)
+          if (( ${#formulae[@]} == 0 )); then
+            echo "No formulae under Formula/, so there is nothing to install."
+            echo "names=" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          names="$(for f in "${formulae[@]}"; do basename "$f" .rb; done | tr '\n' ' ')"
+          echo "Formulae: $names"
+          echo "names=$names" >>"$GITHUB_OUTPUT"
+
+      # As in the `brew` job.
+      - name: Set up Homebrew and tap this checkout
+        if: steps.formulae.outputs.names != ''
+        run: |
+          set -euo pipefail
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          brew update --quiet
+          brew --version
+          tap_dir="$(brew --repository)/Library/Taps/distronode-corporation/homebrew-tap"
+          mkdir -p "$(dirname "$tap_dir")"
+          ln -s "$GITHUB_WORKSPACE" "$tap_dir"
+          brew trust --tap "$TAP"
+          brew tap-info "$TAP"
+
+      - name: Install, test and uninstall
+        if: steps.formulae.outputs.names != ''
+        timeout-minutes: 15
+        env:
+          NAMES: ${{ steps.formulae.outputs.names }}
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: |
+          set -euo pipefail
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          for name in $NAMES; do
+            brew install --formula "$TAP/$name"
+            brew test --verbose "$TAP/$name"
+            brew uninstall --formula "$TAP/$name"
+            if brew list --formula "$TAP/$name" >/dev/null 2>&1; then
+              echo "::error::$name is still installed after uninstall."
+              exit 1
+            fi
+            echo "$name: installed, tested and uninstalled"
+          done
 
   # Static analysis of these workflows: template injection, over-broad token
   # permissions, credential persistence, cache poisoning, unpinned actions.
@@ -179,19 +253,19 @@ jobs:
             *) echo "::error::git grep failed with status $status."; exit "$status" ;;
           esac
 
-      # A tap holds recipes, not binaries: Casks/ carries only `.rb` files (and the
-      # `.gitkeep` that keeps it in git while it is empty).
-      - name: Casks/ holds only casks
+      # A tap holds recipes, not binaries: Casks/ and Formula/ carry only `.rb` files
+      # (and the `.gitkeep` that keeps Casks/ in git while it is empty).
+      - name: Casks/ and Formula/ hold only recipes
         run: |
           set -euo pipefail
-          stray="$(git ls-files Casks | grep -v -E '^Casks/([A-Za-z0-9@._+-]+\.rb|\.gitkeep)$' || true)"
+          stray="$(git ls-files Casks Formula | grep -v -E '^(Casks|Formula)/([A-Za-z0-9@._+-]+\.rb|\.gitkeep)$' || true)"
           if [[ -n "$stray" ]]; then
             while IFS= read -r path; do
-              echo "::error::Not a cask: $path"
+              echo "::error::Not a recipe: $path"
             done <<< "$stray"
             exit 1
           fi
-          echo "Casks/ holds only casks."
+          echo "Casks/ and Formula/ hold only recipes."
 
   macos:
     name: macOS install and zap
@@ -210,25 +284,27 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Casks
+      - name: Casks and formulae
         id: casks
         run: |
           set -euo pipefail
           shopt -s nullglob
           casks=(Casks/*.rb)
-          if (( ${#casks[@]} == 0 )); then
-            echo "No casks under Casks/, so there is nothing to install."
-            echo "names=" >>"$GITHUB_OUTPUT"
-            exit 0
-          fi
+          formulae=(Formula/*.rb)
           names="$(for c in "${casks[@]}"; do basename "$c" .rb; done | tr '\n' ' ')"
-          echo "Casks: $names"
+          formulae_names="$(for f in "${formulae[@]}"; do basename "$f" .rb; done | tr '\n' ' ')"
+          echo "Casks: ${names:-none}"
+          echo "Formulae: ${formulae_names:-none}"
+          if [ -z "$names$formulae_names" ]; then
+            echo "No casks under Casks/ and no formulae under Formula/, so there is nothing to install."
+          fi
           echo "names=$names" >>"$GITHUB_OUTPUT"
+          echo "formulae=$formulae_names" >>"$GITHUB_OUTPUT"
 
       # The image's Homebrew, updated to the current release, with this checkout linked
       # in as the tap, as in the `brew` job.
       - name: Set up Homebrew and tap this checkout
-        if: steps.casks.outputs.names != ''
+        if: steps.casks.outputs.names != '' || steps.casks.outputs.formulae != ''
         run: |
           set -euo pipefail
           brew update --quiet
@@ -311,4 +387,47 @@ jobs:
               [ ! -e "/Applications/$app" ] || { echo "::error::/Applications/$app is still there after uninstall --zap."; exit 1; }
             done
             echo "$name: installed, launched, quit and zapped"
+          done
+
+      # A formula: the online audit (the download, the homepage), livecheck (which
+      # finds an npm package's latest version from its registry URL), then a real
+      # install, the formula's own `test do` block in Homebrew's test sandbox, and an
+      # uninstall. A formula installs no app, so nothing is launched or zapped.
+      - name: Formulae, audit online and livecheck
+        if: steps.casks.outputs.formulae != ''
+        env:
+          NAMES: ${{ steps.casks.outputs.formulae }}
+        run: |
+          set -euo pipefail
+          for name in $NAMES; do
+            brew audit --strict --online --formula "$TAP/$name"
+            result="$(brew livecheck --formula --json "$TAP/$name")"
+            echo "$result"
+            if jq -e '.[0] | has("error")' <<<"$result" >/dev/null; then
+              echo "::error::livecheck could not find $name's latest version."
+              exit 1
+            fi
+            current="$(jq -r '.[0].version.current' <<<"$result")"
+            latest="$(jq -r '.[0].version.latest' <<<"$result")"
+            if [ "$current" != "$latest" ]; then
+              echo "::warning::$name is $current in the formula; its source offers $latest."
+            fi
+          done
+
+      - name: Formulae, install, test and uninstall
+        if: steps.casks.outputs.formulae != ''
+        timeout-minutes: 15
+        env:
+          NAMES: ${{ steps.casks.outputs.formulae }}
+        run: |
+          set -euo pipefail
+          for name in $NAMES; do
+            brew install --formula "$TAP/$name"
+            brew test --verbose "$TAP/$name"
+            brew uninstall --formula "$TAP/$name"
+            if brew list --formula "$TAP/$name" >/dev/null 2>&1; then
+              echo "::error::$name is still installed after uninstall."
+              exit 1
+            fi
+            echo "$name: installed, tested and uninstalled"
           done

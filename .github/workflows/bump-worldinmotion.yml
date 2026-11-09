@@ -1,0 +1,245 @@
+name: Bump worldinmotion
+
+# Proposes Formula/worldinmotion.rb for the latest worldinmotion release, once a day and
+# on demand. The same shape as bump-bridgewatch.yml, for a formula instead of a cask.
+#
+# "Latest" is npm's `latest` dist-tag for the package `worldinmotion`, the version
+# `npm install --global worldinmotion` gets. It is not GitHub's latest release: every
+# worldinmotion release before 1.0 is a GitHub pre-release, which `releases/latest`
+# never returns.
+#
+# - The formula already names that version: a notice, and success.
+# - npm's latest is OLDER than the formula: an error. A dist-tag moved back needs a
+#   person, never an automatic downgrade.
+# - Otherwise it refuses to go on unless every one of these holds:
+#   - the GitHub Release `v<version>` exists and is published;
+#   - the tarball the registry serves has the SHA-512 the registry records for it
+#     (`dist.integrity`);
+#   - the tarball's npm provenance attestation verifies: built by worldinmotion's
+#     release.yml from the tag `v<version>`, on a GitHub-hosted runner;
+#   - the tarball's package.json is `worldinmotion` at that version;
+#   - the tarball's wim.mjs has the SHA-256 that the release's SHA256SUMS lists, the
+#     same as the release's own wim.mjs and the digest GitHub records for that asset;
+#   - the release's wim.mjs build provenance attestation verifies, with the same
+#     signer workflow, tag and runner rule.
+#   Then it writes the formula (.github/scripts/worldinmotion-formula.sh) with the
+#   tarball's SHA-256, pushes it to a `bump/worldinmotion-<version>` branch, and opens a
+#   pull request.
+#
+# ⛔ GITHUB_TOKEN TRIGGERS NO WORKFLOW BY A PUSH OR A PULL REQUEST, so the pull request's
+# required checks would never report. The exception is workflow_dispatch: this workflow
+# dispatches audit.yml on the branch, and that run's jobs (`brew style and audit`,
+# `hygiene`, `gitleaks`, `zizmor`, the Linux and macOS install and test) report on the
+# branch's commit, which is the commit the pull request needs them on.
+#
+# ⚠️ OPENING THE PULL REQUEST NEEDS "Allow GitHub Actions to create and approve pull
+# requests" in the organization's Actions settings, which is off. While it is off this
+# workflow still pushes the branch and runs the checks, then FAILS with a link that
+# opens the pull request in one click; it keeps failing daily until one is open.
+on:
+  schedule:
+    - cron: "23 8 * * *" # daily, 30 minutes after bump-bridgewatch.yml, clear of the Monday runs
+  workflow_dispatch:
+
+permissions: {}
+
+# One bump at a time; a newer run waits rather than racing for the same branch. Its own
+# group, so this bump and the cask bumps never wait on each other.
+concurrency:
+  group: bump-worldinmotion
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  bump:
+    name: bump worldinmotion
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write # push the bump branch
+      pull-requests: write # open the pull request
+      actions: write # dispatch audit.yml on the branch
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE: distronode-corporation/worldinmotion
+      PACKAGE: worldinmotion
+      FORMULA: Formula/worldinmotion.rb
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Latest version
+        id: release
+        run: |
+          set -euo pipefail
+          meta="$(curl -fsSL --proto '=https' "https://registry.npmjs.org/$PACKAGE")"
+          version="$(jq -r '."dist-tags".latest // empty' <<<"$meta")"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::npm's latest $PACKAGE is '$version', not a release version."
+            exit 1
+          fi
+          tarball="$(jq -r --arg v "$version" '.versions[$v].dist.tarball // empty' <<<"$meta")"
+          integrity="$(jq -r --arg v "$version" '.versions[$v].dist.integrity // empty' <<<"$meta")"
+          expected="https://registry.npmjs.org/$PACKAGE/-/$PACKAGE-$version.tgz"
+          if [ "$tarball" != "$expected" ]; then
+            echo "::error::npm serves $PACKAGE@$version from '$tarball', not $expected."
+            exit 1
+          fi
+          if ! [[ "$integrity" =~ ^sha512-[A-Za-z0-9+/]{86}==$ ]]; then
+            echo "::error::npm records no SHA-512 integrity for $PACKAGE@$version ('$integrity')."
+            exit 1
+          fi
+          current="$(sed -n "s|^  url \"https://registry.npmjs.org/$PACKAGE/-/$PACKAGE-\\(.*\\)\\.tgz\"\$|\\1|p" "$FORMULA" 2>/dev/null || true)"
+          echo "npm latest: $version; formula: ${current:-none}"
+          if [ "$current" = "$version" ]; then
+            echo "::notice::$FORMULA already names $version. Nothing to bump."
+            echo "proceed=false" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -n "$current" ] && [ "$(printf '%s\n' "$current" "$version" | sort -V | tail -n 1)" = "$current" ]; then
+            echo "::error::npm's latest $PACKAGE is $version, older than the formula's $current. Not downgrading; a person decides."
+            exit 1
+          fi
+          tag="v$version"
+          if ! release="$(gh api "repos/$SOURCE/releases/tags/$tag" 2>"$RUNNER_TEMP/release.err")"; then
+            cat "$RUNNER_TEMP/release.err"
+            echo "::error::$SOURCE has no published release $tag for $PACKAGE@$version."
+            exit 1
+          fi
+          if [ "$(jq -r .draft <<<"$release")" != "false" ]; then
+            echo "::error::$SOURCE $tag is still a draft."
+            exit 1
+          fi
+          digest="$(jq -r '[.assets[] | select(.name == "wim.mjs") | .digest] | if length == 1 then .[0] else "" end' <<<"$release")"
+          if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::$SOURCE $tag does not carry exactly one wim.mjs with a sha256 digest ('$digest')."
+            exit 1
+          fi
+          {
+            echo "proceed=true"
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "tarball=$tarball"
+            echo "integrity=$integrity"
+            echo "digest=${digest#sha256:}"
+          } >>"$GITHUB_OUTPUT"
+
+      # The tarball is checked before anything reads inside it: the registry's integrity
+      # first, then its provenance. Only then are two files taken out of it.
+      - name: Download and verify the tarball and the release
+        id: verify
+        if: steps.release.outputs.proceed == 'true'
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+          TARBALL: ${{ steps.release.outputs.tarball }}
+          INTEGRITY: ${{ steps.release.outputs.integrity }}
+          DIGEST: ${{ steps.release.outputs.digest }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/dl/release" "$RUNNER_TEMP/dl/pkg"
+          cd "$RUNNER_TEMP/dl"
+          tgz="$PACKAGE-$VERSION.tgz"
+          curl -fsSL --proto '=https' -o "$tgz" "$TARBALL"
+          have="sha512-$(openssl dgst -sha512 -binary "$tgz" | base64 -w0)"
+          if [ "$have" != "$INTEGRITY" ]; then
+            echo "::error::$tgz is $have, but npm records $INTEGRITY."
+            exit 1
+          fi
+          curl -fsSL --proto '=https' -o attestations.json "https://registry.npmjs.org/-/npm/v1/attestations/$PACKAGE@$VERSION"
+          jq -c '.attestations[] | select(.predicateType == "https://slsa.dev/provenance/v1") | .bundle' attestations.json >provenance.jsonl
+          if [ "$(wc -l <provenance.jsonl)" != "1" ]; then
+            echo "::error::npm holds $(wc -l <provenance.jsonl) SLSA provenance attestations for $PACKAGE@$VERSION, not one."
+            exit 1
+          fi
+          gh attestation verify "$tgz" --bundle provenance.jsonl --digest-alg sha512 --repo "$SOURCE" \
+            --signer-workflow "$SOURCE/.github/workflows/release.yml" \
+            --source-ref "refs/tags/$TAG" --deny-self-hosted-runners
+          tar -xzf "$tgz" -C pkg --no-same-owner --no-same-permissions package/package.json package/wim.mjs
+          name="$(jq -r .name pkg/package/package.json)"
+          packaged="$(jq -r .version pkg/package/package.json)"
+          if [ "$name" != "$PACKAGE" ] || [ "$packaged" != "$VERSION" ]; then
+            echo "::error::$tgz holds $name@$packaged, not $PACKAGE@$VERSION."
+            exit 1
+          fi
+          inner="$(sha256sum pkg/package/wim.mjs | cut -d' ' -f1)"
+          gh release download "$TAG" --repo "$SOURCE" --dir release --pattern wim.mjs --pattern SHA256SUMS
+          released="$(sha256sum release/wim.mjs | cut -d' ' -f1)"
+          listed="$(awk '$2 == "wim.mjs" { print $1 }' release/SHA256SUMS)"
+          if [ "$released" != "$listed" ] || [ "$released" != "$DIGEST" ]; then
+            echo "::error::The release's wim.mjs is $released; SHA256SUMS lists '$listed' and GitHub records $DIGEST."
+            exit 1
+          fi
+          if [ "$inner" != "$released" ]; then
+            echo "::error::$tgz carries a wim.mjs of $inner, not the release's $released."
+            exit 1
+          fi
+          gh attestation verify release/wim.mjs --repo "$SOURCE" \
+            --signer-workflow "$SOURCE/.github/workflows/release.yml" \
+            --source-ref "refs/tags/$TAG" --deny-self-hosted-runners
+          sha="$(sha256sum "$tgz" | cut -d' ' -f1)"
+          echo "sha256=$sha" >>"$GITHUB_OUTPUT"
+          echo "$tgz: sha256 $sha; integrity and provenance verified; its wim.mjs ($inner) is the release's, per SHA256SUMS, the asset digest and its attestation"
+
+      - name: Write the formula and push the branch
+        id: branch
+        if: steps.release.outputs.proceed == 'true'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          SHA256: ${{ steps.verify.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          branch="bump/worldinmotion-$VERSION"
+          echo "branch=$branch" >>"$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo "$branch already exists; not pushing it again."
+            echo "pushed=false" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          .github/scripts/worldinmotion-formula.sh "$VERSION" "$SHA256" >"$FORMULA"
+          git add "$FORMULA"
+          git diff --cached --stat
+          git switch --quiet -c "$branch"
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit --quiet -m "worldinmotion $VERSION" \
+            -m "From npm's worldinmotion@$VERSION and $SOURCE's release v$VERSION: the tarball's sha512 checked against the registry's integrity and its provenance attestation verified; its wim.mjs checked against SHA256SUMS and the asset digest, and the release's attestation verified."
+          # The token reaches git as a header for this one push, never the stored config.
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push --quiet origin "HEAD:refs/heads/$branch"
+          echo "pushed=true" >>"$GITHUB_OUTPUT"
+
+      - name: Run the checks on the branch
+        if: steps.branch.outputs.pushed == 'true'
+        env:
+          BRANCH: ${{ steps.branch.outputs.branch }}
+        run: gh workflow run audit.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"
+
+      - name: Open the pull request
+        if: steps.release.outputs.proceed == 'true'
+        env:
+          BRANCH: ${{ steps.branch.outputs.branch }}
+          VERSION: ${{ steps.release.outputs.version }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json url --jq '.[0].url // empty')"
+          if [ -n "$existing" ]; then
+            echo "::notice::A pull request for $BRANCH is already open: $existing"
+            exit 0
+          fi
+          body="Bumps \`worldinmotion\` to $VERSION from npm's \`worldinmotion@$VERSION\` and [$SOURCE $TAG](https://github.com/$SOURCE/releases/tag/$TAG). bump-worldinmotion.yml checked the tarball's SHA-512 against the registry's integrity and verified its npm provenance attestation, then checked the wim.mjs inside it against the release's SHA256SUMS and asset digest and verified the release's attestation; audit.yml was dispatched on this branch for the required checks and the Linux and macOS install and test."
+          if url="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" \
+            --title "worldinmotion $VERSION" --body "$body" 2>"$RUNNER_TEMP/pr.err")"; then
+            echo "::notice::Opened $url"
+            gh pr merge "$url" --auto --squash || echo "::warning::Auto-merge was not enabled on $url; merge it once its checks pass."
+            exit 0
+          fi
+          cat "$RUNNER_TEMP/pr.err"
+          link="https://github.com/$GITHUB_REPOSITORY/compare/main...$BRANCH?expand=1"
+          echo "::error::Could not open the pull request (GitHub Actions may not create pull requests in this organization). Open it here: $link"
+          echo "**Open the pull request:** $link" >>"$GITHUB_STEP_SUMMARY"
+          exit 1

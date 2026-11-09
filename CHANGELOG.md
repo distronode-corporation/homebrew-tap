@@ -10,6 +10,21 @@ day it landed.
 
 ### Added
 
+- `worldinmotion` 0.2.0, the tap's first formula (`Formula/worldinmotion.rb`):
+  worldinmotion's `wim` command, from the npm registry's tarball of the release, with
+  Homebrew's `node`. Its test runs `wim --version`, writes the deployment kit the
+  tarball carries, and runs `wim test` (a relay on loopback and two throwaway devices).
+- `bump-worldinmotion.yml` and `worldinmotion-formula.sh`: proposes the formula for npm's
+  latest `worldinmotion` once the tarball matches the registry's integrity and its npm
+  provenance attestation verifies, and the `wim.mjs` inside it matches the GitHub
+  Release's `SHA256SUMS` and asset digest and its attestation verifies; a version older
+  than the formula's is refused. It dispatches `audit.yml` on the branch.
+- `audit.yml` is formula-aware: `brew style` and `brew audit` cover `Formula/` (each
+  formula also by name), a new `Linux install and test` job installs, tests and removes
+  every formula, and the macOS job adds the online audit, `brew livecheck`, an install,
+  `brew test` and an uninstall for every formula. The hygiene check holds `Formula/` to
+  `.rb` files as it does `Casks/`.
+
 - `bump-bridgewatch.yml` and `bridgewatch-cask.sh`: the pipeline for a second cask,
   `bridgewatch`. It proposes `Casks/bridgewatch.rb` for each new bridgewatch release once
   its universal `.dmg` matches the asset digest GitHub records and its provenance
@@ -19,6 +34,8 @@ day it landed.
 
 ### Changed
 
+- README, CONTRIBUTING, SUPPORT and the issue and pull request templates describe the
+  formula beside the casks.
 - README and CONTRIBUTING describe both casks: bridgewatch has no updater (so no
   `auto_updates`), and its 1.2.0 `.dmg` is signed but not notarised while the app inside
   it is notarised and stapled.
