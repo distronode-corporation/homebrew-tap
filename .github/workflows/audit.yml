@@ -291,8 +291,10 @@ jobs:
           shopt -s nullglob
           casks=(Casks/*.rb)
           formulae=(Formula/*.rb)
-          names="$(for c in "${casks[@]}"; do basename "$c" .rb; done | tr '\n' ' ')"
-          formulae_names="$(for f in "${formulae[@]}"; do basename "$f" .rb; done | tr '\n' ' ')"
+          # macOS runs this step with bash 3.2, where "${a[@]}" of an empty array is an
+          # unbound variable under `set -u`; `${a[@]+"${a[@]}"}` expands it to nothing.
+          names="$(for c in ${casks[@]+"${casks[@]}"}; do basename "$c" .rb; done | tr '\n' ' ')"
+          formulae_names="$(for f in ${formulae[@]+"${formulae[@]}"}; do basename "$f" .rb; done | tr '\n' ' ')"
           echo "Casks: ${names:-none}"
           echo "Formulae: ${formulae_names:-none}"
           if [ -z "$names$formulae_names" ]; then

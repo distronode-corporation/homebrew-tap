@@ -26,6 +26,8 @@ class Worldinmotion < Formula
     system bin/"wim", "agent", "init", "--kit", testpath/"kit"
     assert_path_exists testpath/"kit/docs/deploy.md"
 
-    assert_match " 0 failed", shell_output("#{bin}/wim test")
+    # Every step ran and passed: as many passed as there are steps, none failed or skipped.
+    output = shell_output("#{bin}/wim test")
+    assert_match(/^PASS: (\d+) steps, \1 passed, 0 failed, 0 skipped,/, output)
   end
 end
