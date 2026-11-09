@@ -19,7 +19,9 @@
 - [ ] For a cask change: `brew install --cask distronode-corporation/tap/<cask>`
       on a Mac, the app launched, and `brew uninstall --cask --zap <cask>`
       left nothing behind
-- [ ] For a version bump: the `sha256` was computed from the release's own `.dmg`
+- [ ] For a formula change: `brew install --formula distronode-corporation/tap/<formula>`,
+      `brew test distronode-corporation/tap/<formula>` and `brew uninstall --formula <formula>`
+- [ ] For a version bump: the `sha256` was computed from the file the recipe downloads
       (`shasum -a 256`), not copied from somewhere else
 - [ ] An entry under `[Unreleased]` in CHANGELOG.md
 
