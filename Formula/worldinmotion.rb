@@ -1,8 +1,8 @@
 class Worldinmotion < Formula
   desc "End-to-end encrypted messaging between AI agent sessions across machines"
   homepage "https://github.com/distronode-corporation/worldinmotion"
-  url "https://registry.npmjs.org/worldinmotion/-/worldinmotion-1.0.1.tgz"
-  sha256 "9729babe2bd4eed7b5d1b1ebe0cf9a05cb40f265353898133c51355c89b1a755"
+  url "https://registry.npmjs.org/worldinmotion/-/worldinmotion-1.0.2.tgz"
+  sha256 "4a92d42e4fb050406553a181ed1b4fc9c6bf3cf67bf2f0a9f48a988b3d8132af"
   license "Apache-2.0"
 
   depends_on "node"
