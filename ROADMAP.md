@@ -8,8 +8,11 @@ each project's releases. Most of its work is that automation, so the plan is sho
 ## Planned
 
 - Keep `district-ai`, `bridgewatch` and `worldinmotion` current through their daily bump
-  workflows, each checking the download against the release's checksums and provenance
-  attestation before it proposes a change.
+  workflows, each verifying the download before it proposes a change. For `district-ai` and
+  `bridgewatch` that is the release's checksums and provenance attestation. For
+  `worldinmotion` the npm tarball is checked against the registry's integrity and its npm
+  provenance, and only the `wim.mjs` inside it is compared with the GitHub Release's
+  SHA256SUMS and the release asset's attestation.
 - Keep `audit.yml` passing on every push and pull request: `brew style`,
   `brew audit --strict --os all --arch all`, the Linux and macOS installs, zizmor and
   gitleaks.
