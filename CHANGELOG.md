@@ -10,6 +10,8 @@ day it landed.
 
 ### Added
 
+- `ROADMAP.md` (the next twelve months, and what is not planned) and `SECURITY-MODEL.md`
+  (how the pinned `sha256` and the bump workflows' checks protect an install).
 - `worldinmotion` 0.2.0, the tap's first formula (`Formula/worldinmotion.rb`):
   worldinmotion's `wim` command, from the npm registry's tarball of the release, with
   Homebrew's `node`. Its test runs `wim --version`, writes the deployment kit the
