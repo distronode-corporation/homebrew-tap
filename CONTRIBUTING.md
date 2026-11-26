@@ -12,6 +12,33 @@ for `bridgewatch` and
 [worldinmotion](https://github.com/distronode-corporation/worldinmotion) for the
 `worldinmotion` formula. A bug in an app or tool goes there, not here.
 
+How the repository fits together is in [ARCHITECTURE.md](ARCHITECTURE.md). Who decides,
+the roles and how a change is accepted are in the organization's
+[GOVERNANCE.md](https://github.com/distronode-corporation/.github/blob/main/GOVERNANCE.md),
+which applies here.
+
+## Setup
+
+You need [Homebrew](https://brew.sh) (macOS or Linux) and git. Homebrew works on its own
+clone of the tap, so develop in that clone with your fork as a second remote:
+
+```sh
+brew tap distronode-corporation/tap
+cd "$(brew --repository distronode-corporation/tap)"
+git remote add fork https://github.com/<you>/homebrew-tap.git
+git switch -c <branch>
+```
+
+Homebrew now reads your edits to `Casks/` and `Formula/` directly, so the local gate
+below checks exactly what you changed. Set `HOMEBREW_NO_AUTO_UPDATE=1` while you work,
+so an automatic `brew update` leaves the checkout alone. Push your branch with
+`git push fork <branch>` and open the pull request from it. When you are done,
+`git switch main` puts the tap back on `main`.
+
+For the scripts and workflows you also need ShellCheck and actionlint
+(`brew install shellcheck actionlint`), and to measure the script coverage, jq and
+Ruby 3.2 or later with the `bashcov` gem (`gem install bashcov`); see the local gate.
+
 ## How a cask or formula change is proposed
 
 Every change is a pull request against `main`. Nothing is pushed to `main` directly.
@@ -21,8 +48,23 @@ Every change is a pull request against `main`. Nothing is pushed to `main` direc
    neither directory holds anything else (CI's hygiene check rejects any other file
    there).
 3. Run the local gate below and say in the pull request what it printed.
-4. Add a line under `[Unreleased]` in [CHANGELOG.md](CHANGELOG.md).
+4. Add a line to [CHANGELOG.md](CHANGELOG.md) under today's UTC date (newest first,
+   with a Keep a Changelog section such as `### Added` or `### Fixed`). The helper the
+   bump workflows use does it for you:
+   `.github/scripts/changelog-add.sh CHANGELOG.md "$(date -u +%F)" Fixed "what changed"`.
 5. Open the pull request and fill in the template.
+
+A change comes with its test, in the same pull request:
+
+- A new formula comes with a `test do` block that runs the installed tool, which CI
+  runs on Linux and macOS.
+- A new cask is covered by the macOS install, launch and `--zap` job, and gets its own
+  generator in `.github/scripts`, its own bump workflow and a round-trip test in
+  `test-scripts.sh`.
+- A change to a script in `.github/scripts` comes with a test in `test-scripts.sh`; a
+  bug fix adds a test that fails without the fix.
+- A fix to a workflow comes with a check that fails without it (as the planted bad
+  cask does for the `--os all --arch all` audit).
 
 ## The local gate
 
@@ -66,6 +108,34 @@ Check that the app launched, and that `--zap` removed what the cask lists:
 
 Say which macOS version and which chip (Apple silicon or Intel) you ran it on.
 
+A change to `.github/scripts` or `.github/workflows` also needs the linters and the
+script tests, which CI runs as the `lint` and `script tests` jobs:
+
+```sh
+shellcheck --severity=style .github/scripts/*.sh
+actionlint
+.github/scripts/test-scripts.sh
+.github/scripts/coverage.sh   # needs bashcov and jq; fails below 80 percent
+```
+
+`test-scripts.sh` needs only bash, git and the usual text tools. It regenerates every
+recipe from its own version and checksum and compares it byte for byte, so a recipe
+edited without its generator (or the other way round) fails it.
+
+## Coding standards
+
+- **Casks and formulae:** Homebrew's
+  [Cask Cookbook](https://docs.brew.sh/Cask-Cookbook) and
+  [Formula Cookbook](https://docs.brew.sh/Formula-Cookbook), as enforced by `brew style`
+  (RuboCop with Homebrew's cops) and `brew audit --strict`.
+- **Shell scripts:** Bash with `set -euo pipefail`, clean under ShellCheck at
+  `--severity=style`. A script that writes a recipe uses a quoted heredoc template and
+  allowlists every value it substitutes.
+- **Workflows:** clean under actionlint and zizmor; actions pinned to a full commit SHA
+  with the version in a comment; least-privilege `permissions:` per job; untrusted
+  values reach `run:` blocks through `env:`, never through `${{ }}` inside the script.
+- **Everything:** [.editorconfig](.editorconfig), and no en or em dashes.
+
 ## Versions and checksums
 
 Casks and the formula are bumped by automation from their projects' releases, one
@@ -84,6 +154,14 @@ workflow each:
   registry's integrity and its npm provenance attestation and the `wim.mjs` inside it
   against the GitHub Release's `SHA256SUMS`, asset digest and attestation, and proposes
   the formula with [`worldinmotion-formula.sh`](.github/scripts/worldinmotion-formula.sh).
+
+Each bump writes its own CHANGELOG.md line in the same commit as the recipe, with
+`.github/scripts/changelog-add.sh`. GitHub Actions may not open pull requests in this
+repository, so a bump run pushes its `bump/<name>-<version>` branch, dispatches
+`audit.yml` on it and then fails with a link that opens the pull request; a maintainer
+opens it, and a code owner approves it like any other change. Two bump pull requests
+open at once both add to the top of CHANGELOG.md, so the second needs its branch
+updated, and that conflict resolved, after the first merges.
 
 A bump by hand should be rare. Either way the `sha256` is computed from the file the
 recipe downloads: a cask's `.dmg` from its GitHub Release, the formula's tarball from the
@@ -104,19 +182,33 @@ registry's tarball of the release.
 The [`audit`](.github/workflows/audit.yml) workflow runs on every push to `main`, every
 pull request and once a week:
 
-- **brew:** `brew style` and `brew audit --strict --os all --arch all` over every cask
-  and formula.
+- **brew style and audit:** `brew style` and `brew audit --strict --os all --arch all`
+  over every cask and formula, and the same audit run against a planted bad cask, which
+  it must fail.
 - **Linux install and test:** every formula installed, tested and removed on Linux.
 - **macOS install and zap:** on macOS, the online audit and `brew livecheck` for every
   cask and formula, then every cask installed, launched and zapped, and every formula
   installed, tested and removed.
 - **zizmor:** static analysis of the workflows. Actions are pinned to a full commit SHA.
+- **lint:** ShellCheck over `.github/scripts/*.sh` and actionlint over the workflows.
+- **script tests:** `test-scripts.sh` under bashcov; fails on any failing test or below
+  80 percent line coverage of the measured scripts.
 - **gitleaks:** secrets anywhere in the history.
 - **hygiene:** no en or em dashes in any tracked file (use commas, periods or
   parentheses), and `Casks/` and `Formula/` hold only `.rb` files.
 
 The workflow reads no secrets, so a pull request from a fork runs exactly the same
 checks; GitHub asks a maintainer to approve the first run for a first-time contributor.
+Which checks must pass before a merge is set by the repository's ruleset.
+
+## Releases
+
+There is nothing to do by hand. A change reaches users when it merges to `main`. Each
+merge that changes CHANGELOG.md is tagged `YYYY.MM.DD.N` and signed by
+[`release.yml`](.github/workflows/release.yml), which also publishes a GitHub Release
+with the CHANGELOG lines since the previous tag. A maintainer can also run it from the
+Actions tab (`workflow_dispatch`, `main` only) to tag `main`'s head. How to verify a
+tag is in [SECURITY-MODEL.md](SECURITY-MODEL.md#verifying-a-release).
 
 ## Commits
 

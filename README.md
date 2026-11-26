@@ -45,10 +45,8 @@ silicon and Intel) `.dmg`, signed with Distronode's Developer ID. Homebrew check
 download against the SHA-256 recorded in the cask before it installs anything.
 
 - **District AI:** the `.dmg` is notarised by Apple.
-- **bridgewatch:** the app inside the `.dmg` is notarised by Apple and the ticket is
-  stapled to it, so Gatekeeper accepts the installed app; the 1.2.0 `.dmg` itself is
-  signed but not notarised. Homebrew mounts the `.dmg` and copies the app out, so this
-  makes no difference to a `brew install`.
+- **bridgewatch:** the `.dmg` and the app inside it are both notarised by Apple, with
+  the tickets stapled, so Gatekeeper accepts the installed app.
 
 The `worldinmotion` formula installs the npm package `worldinmotion` from the npm
 registry's tarball, the one worldinmotion's release workflow published with a provenance
@@ -116,14 +114,22 @@ use them with, so we are asking before we build anything:
 | --- | --- |
 | `Casks/` | The casks: `district-ai.rb`, District AI for Mac, and `bridgewatch.rb`, bridgewatch. |
 | `Formula/` | The formula: `worldinmotion.rb`, worldinmotion's `wim`. |
-| `.github/workflows/audit.yml` | `brew style` and `brew audit` on every cask and formula, zizmor on the workflows, gitleaks over the whole history, a hygiene check; for every formula an install, `brew test` and an uninstall on Linux; and on macOS the online audit with the download and `brew livecheck` for both, then an install, a launch and `uninstall --zap` for a cask, and an install, `brew test` and an uninstall for a formula. |
+| `.github/workflows/audit.yml` | `brew style` and `brew audit` on every cask and formula (with a planted bad cask that the audit must fail), zizmor on the workflows, ShellCheck and actionlint, the script tests with their coverage floor, gitleaks over the whole history, a hygiene check; for every formula an install, `brew test` and an uninstall on Linux; and on macOS the online audit with the download and `brew livecheck` for both, then an install, a launch and `uninstall --zap` for a cask, and an install, `brew test` and an uninstall for a formula. |
 | `.github/workflows/bump.yml` | Daily: proposes the cask for the latest district-macos release, after checking the `.dmg` against `SHA256SUMS`, the release's asset digest and its provenance attestation. |
 | `.github/scripts/district-ai-cask.sh` | Writes `Casks/district-ai.rb`; the one place the cask's text lives. |
 | `.github/workflows/bump-bridgewatch.yml` | Daily: proposes the cask for the latest bridgewatch release, after checking the `.dmg` against the release's asset digest and its provenance attestation (bridgewatch publishes no `SHA256SUMS`). |
 | `.github/scripts/bridgewatch-cask.sh` | Writes `Casks/bridgewatch.rb`; the one place the cask's text lives. |
 | `.github/workflows/bump-worldinmotion.yml` | Daily: proposes the formula for npm's latest `worldinmotion`, after checking the tarball against the registry's integrity and its npm provenance attestation, and the `wim.mjs` inside it against the GitHub Release's `SHA256SUMS`, asset digest and build provenance attestation. |
 | `.github/scripts/worldinmotion-formula.sh` | Writes `Formula/worldinmotion.rb`; the one place the formula's text lives. |
+| `.github/workflows/release.yml` | Each merge to `main` that changes CHANGELOG.md: a `YYYY.MM.DD.N` tag signed keylessly with gitsign, and a GitHub Release listing the CHANGELOG lines since the previous tag. [SECURITY-MODEL.md](SECURITY-MODEL.md#verifying-a-release) has the command that verifies a tag. |
+| `.github/scripts/changelog-add.sh`, `release.sh` | The bump workflows' CHANGELOG line, and the release workflow's tag name and notes. |
+| `.github/scripts/test-scripts.sh`, `coverage.sh` | Tests for every script here, run under bashcov with an 80 percent line coverage floor. |
 | `.github/workflows/scorecard.yml` | OpenSSF Scorecard, the result behind the badge above. |
+| `.github/workflows/codeql.yml` | CodeQL code scanning of the workflows. |
+| `.github/workflows/review-threads.yml`, `public-hygiene.yml` | The organization's review threads check and public text check. |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | How the tap is put together and where each check sits. |
+| [SECURITY-MODEL.md](SECURITY-MODEL.md) | How an install is protected, how to verify a release, and the assurance case. |
+| [ROADMAP.md](ROADMAP.md) | The next twelve months, and what is not planned. |
 
 Each app's source, its build and its releases live in its own repository,
 [district-macos](https://github.com/distronode-corporation/district-macos),
@@ -133,10 +139,13 @@ other open-source work is listed at <https://www.distronode.com/open-source>.
 
 ## Contributing, security and conduct
 
-- [CONTRIBUTING.md](CONTRIBUTING.md): how a cask or formula change is proposed, the
-  local gate (`brew style`, `brew audit --strict --os all --arch all`, a real install,
-  and `uninstall --zap` for a cask or `brew test` for a formula) and the rules CI
-  enforces.
+- [CONTRIBUTING.md](CONTRIBUTING.md): how to set up a checkout, how a cask or formula
+  change is proposed, the local gate (`brew style`, `brew audit --strict --os all --arch
+  all`, a real install, and `uninstall --zap` for a cask or `brew test` for a formula,
+  plus the script tests and linters) and the rules CI enforces.
+- [GOVERNANCE.md](https://github.com/distronode-corporation/.github/blob/main/GOVERNANCE.md):
+  the organization's governance, roles, vulnerability response and continuity, which
+  apply to this repository (it has no GOVERNANCE.md of its own).
 - [SECURITY.md](.github/SECURITY.md): report vulnerabilities privately, through
   [GitHub's private vulnerability reporting](https://github.com/distronode-corporation/homebrew-tap/security/advisories/new),
   never in a public issue.
