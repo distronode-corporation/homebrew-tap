@@ -9,18 +9,20 @@ newest first, so the first `## ` heading is always a date.
 
 Each version bump of a cask or the formula records its own line here, written by its
 bump workflow in the same commit as the recipe (`.github/scripts/changelog-add.sh`).
-Each merge to `main` that changes this file is tagged `YYYY.MM.DD.N` and signed by
-[`release.yml`](.github/workflows/release.yml) (on the push, or at its daily run), and that tag's GitHub Release lists the
-lines this file gained since the previous tag. How to verify a tag is in
+A merge to `main` that changes this file is tagged `YYYY.MM.DD.N` and signed by
+[`release.yml`](.github/workflows/release.yml) when it lands. A merge that started no
+workflow run (one pushed with a workflow's own token) is covered by the workflow's
+daily run, which tags the head of `main` if this file changed since the previous tag,
+so such a merge can share a tag with later ones. Each tag's GitHub Release lists the
+lines this file gained since the previous tag, so no entry is left out of the notes. How to verify a tag is in
 [SECURITY-MODEL.md](SECURITY-MODEL.md#verifying-a-release).
 
 ## 2026-11-26
 
 ### Added
 
-- `release.yml`: each merge to `main` that changes this file (on the push, or at the
-  workflow's daily run) gets a CalVer tag
-  (`YYYY.MM.DD.N`) signed keylessly with gitsign under the workflow's own identity, and
+- `release.yml`: a merge to `main` that changes this file gets a CalVer tag
+  (`YYYY.MM.DD.N`; a daily run tags `main`'s head for merges that started no run) signed keylessly with gitsign under the workflow's own identity, and
   a GitHub Release whose notes are the lines this file gained since the previous tag.
   The workflow verifies the signature with the documented command before it pushes
   the tag.

@@ -60,16 +60,19 @@ install) runs on it before it merges.
 
 Homebrew reads no tags: `brew update` fetches `main` over HTTPS and every install is
 checked against its recipe's `sha256`. The signed tags are for anyone who wants to
-check that a state of the tap is one this repository's `release.yml` published, and
-that it has not been moved or rewritten since. They do not stand apart from GitHub
+check that a state of the tap is one this repository's `release.yml` published. What
+keeps a tag pointing where it was created is the repository's tag ruleset, which
+refuses moving or deleting a tag; repository admins can bypass it, and the signature
+alone would not reveal a tag ref moved onto a different, validly signed tag object, so
+check the tag's own name too (below). The tags do not stand apart from GitHub
 account security: a change that reaches `main` through a compromised maintainer or
 owner account, and records a CHANGELOG line, is tagged and signed like any other, and
 the command below accepts it, because it checks the workflow's identity, not who
 approved the change. The review that gates `main` is what protects against that (see
 the assurance case below).
 
-[`release.yml`](.github/workflows/release.yml) tags each merge to `main` that changes
-CHANGELOG.md (when the merge lands, or at its daily run if the merge started no run) as `YYYY.MM.DD.N` (the UTC date, then a counter from 1) and signs the tag
+[`release.yml`](.github/workflows/release.yml) tags merges to `main` that change
+CHANGELOG.md as `YYYY.MM.DD.N` (the UTC date, then a counter from 1) and signs the tag
 keylessly with [gitsign](https://github.com/sigstore/gitsign). Sigstore's Fulcio issues
 a short-lived certificate for the workflow's own GitHub OIDC identity, and the signature
 is recorded in Sigstore's public Rekor transparency log, so there is no long-lived
@@ -91,7 +94,12 @@ gitsign verify-tag <tag> \
 ```
 
 A good tag prints `Validated Git signature: true`, `Validated Rekor entry: true` and
-`Validated Certificate claims: true`, and the command exits 0. `release.yml` runs this
+`Validated Certificate claims: true`, and the command exits 0. The tag's name is part
+of what was signed, so also check that `git cat-file tag <tag> | sed -n 's/^tag //p'`
+prints exactly `<tag>`: a ref moved onto another signed release tag fails that check.
+A merge is tagged when it lands; one that started no workflow run (pushed with a
+workflow's own token) is covered by the daily run, which tags `main`'s head, so it can
+share a tag with later merges. `release.yml` runs this
 same command on every tag before it pushes it. GitHub's web page shows these tags as
 unverified, because GitHub does not trust Sigstore's certificate authority; the command
 above is the check.

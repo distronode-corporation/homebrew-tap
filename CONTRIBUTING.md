@@ -203,11 +203,13 @@ Which checks must pass before a merge is set by the repository's ruleset.
 
 ## Releases
 
-There is nothing to do by hand. A change reaches users when it merges to `main`. Each
+There is nothing to do by hand. A change reaches users when it merges to `main`. A
 merge that changes CHANGELOG.md is tagged `YYYY.MM.DD.N` and signed by
-[`release.yml`](.github/workflows/release.yml), when the merge lands or, if the merge
-started no workflow run (a merge by a workflow's own token), at its daily run. It also
-publishes a GitHub Release with the CHANGELOG lines since the previous tag. A maintainer can also run it from the
+[`release.yml`](.github/workflows/release.yml) when it lands. A merge that started no
+workflow run (one pushed with a workflow's own token) is covered by the daily run,
+which tags `main`'s head if CHANGELOG.md changed since the previous tag, so that merge
+may share a tag with later ones. Each tag's GitHub Release lists the CHANGELOG lines
+since the previous tag. A maintainer can also run it from the
 Actions tab (`workflow_dispatch`, `main` only) to tag `main`'s head. How to verify a
 tag is in [SECURITY-MODEL.md](SECURITY-MODEL.md#verifying-a-release).
 

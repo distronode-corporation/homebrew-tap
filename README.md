@@ -121,7 +121,7 @@ use them with, so we are asking before we build anything:
 | `.github/scripts/bridgewatch-cask.sh` | Writes `Casks/bridgewatch.rb`; the one place the cask's text lives. |
 | `.github/workflows/bump-worldinmotion.yml` | Daily: proposes the formula for npm's latest `worldinmotion`, after checking the tarball against the registry's integrity and its npm provenance attestation, and the `wim.mjs` inside it against the GitHub Release's `SHA256SUMS`, asset digest and build provenance attestation. |
 | `.github/scripts/worldinmotion-formula.sh` | Writes `Formula/worldinmotion.rb`; the one place the formula's text lives. |
-| `.github/workflows/release.yml` | Each merge to `main` that changes CHANGELOG.md (on the push, or at its daily run): a `YYYY.MM.DD.N` tag signed keylessly with gitsign, and a GitHub Release listing the CHANGELOG lines since the previous tag. [SECURITY-MODEL.md](SECURITY-MODEL.md#verifying-a-release) has the command that verifies a tag. |
+| `.github/workflows/release.yml` | A merge to `main` that changes CHANGELOG.md (on the push; a daily run tags `main`'s head for a merge that started no run): a `YYYY.MM.DD.N` tag signed keylessly with gitsign, and a GitHub Release listing the CHANGELOG lines since the previous tag. [SECURITY-MODEL.md](SECURITY-MODEL.md#verifying-a-release) has the command that verifies a tag. |
 | `.github/scripts/changelog-add.sh`, `release.sh` | The bump workflows' CHANGELOG line, and the release workflow's tag name and notes. |
 | `.github/scripts/test-scripts.sh`, `coverage.sh` | Tests for every script here, run under bashcov with an 80 percent line coverage floor. |
 | `.github/workflows/scorecard.yml` | OpenSSF Scorecard, the result behind the badge above. |
