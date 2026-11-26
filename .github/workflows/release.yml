@@ -18,7 +18,8 @@ name: Release
 #   Sigstore's public Rekor log; there is no long-lived signing key anywhere. The tag
 #   is verified with the exact command SECURITY-MODEL.md documents before it is
 #   pushed, so a tag that does not verify is never published. A commit that already
-#   has a release tag gets no second one.
+#   has a release tag gets no second one: the existing tag is verified and passed on,
+#   so a re-run still publishes a GitHub Release that is missing.
 # - `release`: a GitHub Release for the tag, whose notes are the lines CHANGELOG.md
 #   gained since the previous tag (release.sh notes).
 #
@@ -90,14 +91,27 @@ jobs:
           set -euo pipefail
           # Release tags only: YYYY.MM.DD.N.
           mapfile -t tags < <(git tag --list '[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9].*' | grep -E '^[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[1-9][0-9]*$' || true)
+          verify() {
+            # The command SECURITY-MODEL.md tells people to run, with the identity this
+            # workflow signs as.
+            "$RUNNER_TEMP/bin/gitsign" verify-tag "$1" \
+              --certificate-identity "https://github.com/$GITHUB_REPOSITORY/.github/workflows/release.yml@refs/heads/main" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          }
+          match='[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9].*'
+          # A re-run after the tag was pushed (a later step or the release job failed):
+          # verify the existing tag and hand it on, so its GitHub Release is still made.
           existing="$(git tag --points-at "$COMMIT" | grep -E '^[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[1-9][0-9]*$' | head -n 1 || true)"
           if [ -n "$existing" ]; then
-            echo "::notice::$COMMIT is already tagged $existing. Nothing to release."
-            echo "tag=" >>"$GITHUB_OUTPUT"
+            verify "$existing"
+            previous="$(git describe --tags --abbrev=0 --match "$match" "$COMMIT^" 2>/dev/null || true)"
+            echo "::notice::$COMMIT is already tagged $existing (verified); the release job publishes its GitHub Release if it is missing."
+            echo "tag=$existing" >>"$GITHUB_OUTPUT"
+            echo "previous=$previous" >>"$GITHUB_OUTPUT"
             exit 0
           fi
           # The newest release tag that is an ancestor of this commit is the previous one.
-          previous="$(git describe --tags --abbrev=0 --match '[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9].*' "$COMMIT" 2>/dev/null || true)"
+          previous="$(git describe --tags --abbrev=0 --match "$match" "$COMMIT" 2>/dev/null || true)"
           tag="$(.github/scripts/release.sh next-tag "$(date -u +%F)" ${tags[@]+"${tags[@]}"})"
           echo "Tagging $COMMIT as $tag (previous release: ${previous:-none})"
 
@@ -108,11 +122,7 @@ jobs:
           git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
             tag --sign --message "$tag" "$tag" "$COMMIT"
 
-          # The command SECURITY-MODEL.md tells people to run, with the identity this
-          # workflow signs as.
-          "$RUNNER_TEMP/bin/gitsign" verify-tag "$tag" \
-            --certificate-identity "https://github.com/$GITHUB_REPOSITORY/.github/workflows/release.yml@refs/heads/main" \
-            --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          verify "$tag"
 
           # The token reaches git as a header for this one push, never the stored config.
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
@@ -150,6 +160,18 @@ jobs:
       - name: Create the release
         run: |
           set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::notice::The GitHub Release $TAG already exists."
+            exit 0
+          fi
+          # Latest only if no newer release tag already sits on a descendant of this
+          # commit (a re-run of an older commit after a newer one was released).
+          newer="$(git tag --contains "$COMMIT" | grep -E '^[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[1-9][0-9]*$' | grep -vxF "$TAG" || true)"
+          latest=true
+          if [ -n "$newer" ]; then
+            echo "Newer release tags already contain $COMMIT ($(tr '\n' ' ' <<<"$newer")); not marking $TAG as Latest."
+            latest=false
+          fi
           {
             .github/scripts/release.sh notes "$PREVIOUS" "$COMMIT"
             echo
@@ -157,4 +179,4 @@ jobs:
           } >"$RUNNER_TEMP/notes.md"
           cat "$RUNNER_TEMP/notes.md"
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$TAG" \
-            --notes-file "$RUNNER_TEMP/notes.md" --latest
+            --notes-file "$RUNNER_TEMP/notes.md" --latest="$latest"

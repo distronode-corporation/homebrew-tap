@@ -92,7 +92,9 @@ above is the check.
 
 To compare the tap you have installed with a tag, run the same commands in Homebrew's
 own clone of the tap (`cd "$(brew --repository distronode-corporation/tap)"`), then
-check that `git rev-parse HEAD` equals `git rev-parse <tag>^{commit}`. Each tag's
+check that `git rev-parse HEAD` equals `git rev-parse <tag>^{commit}`, that
+`git diff --quiet <tag>` exits 0 (no file differs from the tag, committed or not), and
+that `git status --porcelain --untracked-files=all` prints nothing (no extra files). Each tag's
 GitHub Release lists the CHANGELOG lines it added.
 
 ## Assurance case

@@ -119,6 +119,7 @@ jobs:
           set -euo pipefail
           eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
           control=Casks/audit-control.rb
+          mkdir -p Casks
           trap 'rm -f "$control"' EXIT
           cat >"$control" <<'CASK'
           cask "audit-control" do
