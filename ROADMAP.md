@@ -14,8 +14,11 @@ each project's releases. Most of its work is that automation, so the plan is sho
   provenance, and only the `wim.mjs` inside it is compared with the GitHub Release's
   SHA256SUMS and the release asset's attestation.
 - Keep `audit.yml` passing on every push and pull request: `brew style`,
-  `brew audit --strict --os all --arch all`, the Linux and macOS installs, zizmor and
-  gitleaks.
+  `brew audit --strict --os all --arch all`, the Linux and macOS installs, zizmor,
+  ShellCheck and actionlint, the script tests at or above their 80 percent coverage
+  floor, and gitleaks.
+- Keep signing a release tag for each change recorded in the CHANGELOG, verifiable with
+  the command in SECURITY-MODEL.md.
 - Add a cask or formula when another Distronode project publishes a release that
   Homebrew can install, with its own bump workflow that verifies the release the same
   way.

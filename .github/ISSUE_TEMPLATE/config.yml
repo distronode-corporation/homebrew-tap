@@ -1,6 +1,7 @@
 # No blank issues: everything goes through the structured bug report form, or one of
 # the links below. The tracker is for problems installing, upgrading or removing the
-# casks; bugs in an app itself go to its repository (see .github/SUPPORT.md).
+# casks and the formula; bugs in an app or tool itself go to its repository (see
+# .github/SUPPORT.md).
 blank_issues_enabled: false
 contact_links:
   - name: README
@@ -15,6 +16,9 @@ contact_links:
   - name: A bug in bridgewatch itself
     url: https://github.com/distronode-corporation/bridgewatch/issues
     about: The app's source and releases live in bridgewatch. Report app bugs there.
+  - name: A bug in worldinmotion (wim) itself
+    url: https://github.com/distronode-corporation/worldinmotion/issues
+    about: The tool's source and releases live in worldinmotion. Report bugs in wim there.
   - name: Security report
     url: https://github.com/distronode-corporation/homebrew-tap/security/advisories/new
     about: Please do not open a public issue for a vulnerability. Report it privately here (see SECURITY.md).

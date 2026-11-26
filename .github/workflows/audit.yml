@@ -15,6 +15,10 @@ name: Audit
 #   formula: the online audit, livecheck, a real install, `brew test` and an
 #   uninstall. With neither it says so and succeeds.
 # - `zizmor`: static analysis of these workflows.
+# - `lint`: ShellCheck over every shell script and actionlint over every workflow.
+# - `script tests`: .github/scripts/test-scripts.sh (each generator reproduces its
+#   committed recipe and refuses bad input; the CHANGELOG and release helpers) under
+#   bashcov, failing below 80 percent line coverage of the measured scripts.
 # - `gitleaks`: secrets anywhere in the history, not just the tip.
 # - `hygiene`: the org's repository rules (no em or en dashes) and the shape of Casks/
 #   and Formula/.
@@ -105,6 +109,49 @@ jobs:
             brew audit --strict --os all --arch all --formula "$TAP/$(basename "$f" .rb)"
           done
 
+      # The audit above passing means something only if it really audits a macOS-only
+      # cask on Linux. A cask with two known audit problems (`version :latest` with
+      # `auto_updates true`, the pair the `--os all --arch all` fix was measured with)
+      # is planted in this checkout, and the same `--tap` audit must fail on it and
+      # name both. It is removed again whatever the result; nothing is committed.
+      - name: The audit fails a planted bad cask
+        run: |
+          set -euo pipefail
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          control=Casks/audit-control.rb
+          mkdir -p Casks
+          trap 'rm -f "$control"' EXIT
+          cat >"$control" <<'CASK'
+          cask "audit-control" do
+            version :latest
+            sha256 :no_check
+
+            url "https://github.com/distronode-corporation/bridgewatch/releases/latest/download/bridgewatch_universal.dmg"
+            name "audit-control"
+            desc "Planted by audit.yml to prove the audit runs on Linux"
+            homepage "https://github.com/distronode-corporation/homebrew-tap"
+
+            auto_updates true
+            depends_on :macos
+
+            app "audit-control.app"
+          end
+          CASK
+          set +e
+          brew audit --strict --os all --arch all --tap "$TAP" >"$RUNNER_TEMP/control.log" 2>&1
+          status=$?
+          set -e
+          cat "$RUNNER_TEMP/control.log"
+          if [ "$status" = 0 ]; then
+            echo "::error::brew audit passed a cask planted with audit errors, so it is not auditing macOS-only casks."
+            exit 1
+          fi
+          if ! grep -q 'audit-control' "$RUNNER_TEMP/control.log" || ! grep -q 'auto_updates' "$RUNNER_TEMP/control.log"; then
+            echo "::error::brew audit failed, but not on the planted cask's auto_updates problem; read the log above."
+            exit 1
+          fi
+          echo "brew audit failed on the planted cask, as it must."
+
   # A formula installs and runs on Linux too (Homebrew on Linux), so each one is
   # installed, tested with its own `test do` block and removed here, as on macOS below.
   linux:
@@ -189,6 +236,96 @@ jobs:
           version: 1.30.1
           advanced-security: false
           annotations: true
+
+  # Coding standards for what is not Ruby: ShellCheck for the shell scripts in
+  # .github/scripts, actionlint for the workflows (with ShellCheck over their `run:`
+  # blocks). Neither has an action on the organization's allowed list, so both are
+  # installed pinned: ShellCheck's release tarball checked against its SHA-256, and
+  # actionlint with `go install`, which the Go checksum database checks.
+  lint:
+    name: lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      SHELLCHECK_VERSION: v0.11.0
+      SHELLCHECK_SHA256: 8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.25'
+          cache: false
+
+      - name: Install ShellCheck and actionlint
+        run: |
+          set -euo pipefail
+          tarball="$RUNNER_TEMP/shellcheck.tar.xz"
+          curl -fsSL --proto '=https' -o "$tarball" \
+            "https://github.com/koalaman/shellcheck/releases/download/$SHELLCHECK_VERSION/shellcheck-$SHELLCHECK_VERSION.linux.x86_64.tar.xz"
+          echo "$SHELLCHECK_SHA256  $tarball" | sha256sum -c -
+          tar -xJf "$tarball" -C "$RUNNER_TEMP"
+          "$RUNNER_TEMP/shellcheck-$SHELLCHECK_VERSION/shellcheck" --version
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+          "$(go env GOPATH)/bin/actionlint" -version
+
+      - name: ShellCheck
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          scripts=(.github/scripts/*.sh)
+          (( ${#scripts[@]} > 0 )) || { echo "::error::No scripts under .github/scripts."; exit 1; }
+          printf 'Script: %s\n' "${scripts[@]}"
+          "$RUNNER_TEMP/shellcheck-$SHELLCHECK_VERSION/shellcheck" --severity=style "${scripts[@]}"
+
+      - name: actionlint
+        run: |
+          set -euo pipefail
+          "$(go env GOPATH)/bin/actionlint" -shellcheck "$RUNNER_TEMP/shellcheck-$SHELLCHECK_VERSION/shellcheck"
+
+  # The scripts the bump and release workflows run are tested and measured:
+  # .github/scripts/test-scripts.sh under bashcov, through coverage.sh, which fails
+  # below 80 percent line coverage of the measured scripts and prints each one's figure.
+  # bashcov and SimpleCov (its one dependency) are pure Ruby gems, downloaded at pinned
+  # versions, checked against pinned SHA-256s and installed offline into a scratch
+  # GEM_HOME with the image's Ruby.
+  scripts:
+    name: script tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install bashcov
+        run: | # zizmor: ignore[adhoc-packages] the .gem files are pinned by version and SHA-256 below
+          set -euo pipefail
+          ruby --version
+          gems="$RUNNER_TEMP/gems"
+          mkdir -p "$gems/download"
+          while read -r name version sha256; do
+            file="$gems/download/$name-$version.gem"
+            curl -fsSL --proto '=https' -o "$file" "https://rubygems.org/downloads/$name-$version.gem"
+            echo "$sha256  $file" | sha256sum -c -
+          done <<'GEMS'
+          simplecov 1.2.0 ea6acd05eece5a41990e2a5171c57d15700d329326c7666c85ee8c6a0dd0977e
+          bashcov 4.0.2 ca055e53a15268e5541102e58b5e08fda17b243327160ceabb54fcc76a2c9ade
+          GEMS
+          # No lockfile: the two .gem files are pinned by version and SHA-256 just above,
+          # and installed from those files only (--local, no dependency resolution).
+          export GEM_HOME="$gems" GEM_PATH="$gems"
+          gem install --local --no-document --ignore-dependencies "$gems/download/simplecov-1.2.0.gem" "$gems/download/bashcov-4.0.2.gem"
+
+      - name: Tests and coverage
+        run: |
+          set -euo pipefail
+          export GEM_HOME="$RUNNER_TEMP/gems" GEM_PATH="$RUNNER_TEMP/gems"
+          export PATH="$RUNNER_TEMP/gems/bin:$PATH"
+          bashcov --version
+          .github/scripts/coverage.sh
 
   gitleaks:
     name: gitleaks

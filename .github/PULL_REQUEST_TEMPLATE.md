@@ -11,8 +11,9 @@
 ## How it was tested
 
 <!-- Commands you actually ran, and what they said. "Should work" is not a test.
-     CI's `audit` workflow runs the first two on every cask, plus zizmor, gitleaks
-     and the hygiene check. -->
+     CI's `audit` workflow runs the first two on every cask and formula, plus the
+     installs, zizmor, ShellCheck and actionlint, the script tests, gitleaks and the
+     hygiene check. -->
 
 - [ ] `brew style distronode-corporation/tap`
 - [ ] `brew audit --strict --os all --arch all --tap distronode-corporation/tap`
@@ -23,7 +24,9 @@
       `brew test distronode-corporation/tap/<formula>` and `brew uninstall --formula <formula>`
 - [ ] For a version bump: the `sha256` was computed from the file the recipe downloads
       (`shasum -a 256`), not copied from somewhere else
-- [ ] An entry under `[Unreleased]` in CHANGELOG.md
+- [ ] For a change to `.github/scripts` or `.github/workflows`: `shellcheck --severity=style .github/scripts/*.sh`,
+      `actionlint` and `.github/scripts/test-scripts.sh` (with a test for the change)
+- [ ] An entry in CHANGELOG.md under today's UTC date
 
 ## Anything a reviewer should know
 
