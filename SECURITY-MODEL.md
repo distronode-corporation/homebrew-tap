@@ -93,8 +93,9 @@ gitsign verify-tag <tag> \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
-A good tag prints `Validated Git signature: true`, `Validated Rekor entry: true` and
-`Validated Certificate claims: true`, and the command exits 0. The tag's name is part
+A good tag prints its transparency log index (`tlog index: ...`), `Good signature from`
+the identity above, `Validated Git signature: true` and `Validated Certificate claims: true`,
+and the command exits 0 (gitsign 0.13.0); a wrong identity exits 1. The tag's name is part
 of what was signed, so also check that `git cat-file tag <tag> | sed -n 's/^tag //p'`
 prints exactly `<tag>`: a ref moved onto another signed release tag fails that check.
 A merge is tagged when it lands, with two exceptions where it shares a later tag
