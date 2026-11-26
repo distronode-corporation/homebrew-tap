@@ -5,3 +5,6 @@
 .idea/
 .vscode/
 *.swp
+
+# bashcov report (.github/scripts/coverage.sh)
+coverage/
