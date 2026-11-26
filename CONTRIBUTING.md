@@ -208,7 +208,8 @@ merge that changes CHANGELOG.md is tagged `YYYY.MM.DD.N` and signed by
 [`release.yml`](.github/workflows/release.yml) when it lands. A merge that started no
 workflow run (one pushed with a workflow's own token) is covered by the daily run,
 which tags `main`'s head if CHANGELOG.md changed since the previous tag, so that merge
-may share a tag with later ones. Each tag's GitHub Release lists the CHANGELOG lines
+may share a tag with later ones (as may one whose waiting run GitHub cancelled for a
+newer one). Each tag's GitHub Release lists the CHANGELOG lines
 since the previous tag. A maintainer can also run it from the
 Actions tab (`workflow_dispatch`, `main` only) to tag `main`'s head. How to verify a
 tag is in [SECURITY-MODEL.md](SECURITY-MODEL.md#verifying-a-release).

@@ -97,9 +97,11 @@ A good tag prints `Validated Git signature: true`, `Validated Rekor entry: true`
 `Validated Certificate claims: true`, and the command exits 0. The tag's name is part
 of what was signed, so also check that `git cat-file tag <tag> | sed -n 's/^tag //p'`
 prints exactly `<tag>`: a ref moved onto another signed release tag fails that check.
-A merge is tagged when it lands; one that started no workflow run (pushed with a
-workflow's own token) is covered by the daily run, which tags `main`'s head, so it can
-share a tag with later merges. `release.yml` runs this
+A merge is tagged when it lands, with two exceptions where it shares a later tag
+instead: one that started no workflow run (pushed with a workflow's own token), which
+the daily run covers by tagging `main`'s head, and one whose run was still waiting
+when a newer merge's run queued behind the same release (GitHub cancels the older
+waiting run). Either way its CHANGELOG lines are in that later tag's release notes. `release.yml` runs this
 same command on every tag before it pushes it. GitHub's web page shows these tags as
 unverified, because GitHub does not trust Sigstore's certificate authority; the command
 above is the check.

@@ -13,7 +13,8 @@ A merge to `main` that changes this file is tagged `YYYY.MM.DD.N` and signed by
 [`release.yml`](.github/workflows/release.yml) when it lands. A merge that started no
 workflow run (one pushed with a workflow's own token) is covered by the workflow's
 daily run, which tags the head of `main` if this file changed since the previous tag,
-so such a merge can share a tag with later ones. Each tag's GitHub Release lists the
+so such a merge can share a tag with later ones; so can a merge whose waiting run
+GitHub cancelled for a newer one. Each tag's GitHub Release lists the
 lines this file gained since the previous tag, so no entry is left out of the notes. How to verify a tag is in
 [SECURITY-MODEL.md](SECURITY-MODEL.md#verifying-a-release).
 
