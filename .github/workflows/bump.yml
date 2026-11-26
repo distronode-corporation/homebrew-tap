@@ -8,7 +8,8 @@ name: Bump district-ai
 #   unless the .dmg's SHA-256 equals both the SHA256SUMS entry and the digest GitHub
 #   records for the asset, and its build provenance attestation verifies (built by
 #   district-macos's release.yml from the release's tag, on a GitHub-hosted runner).
-#   Then it writes the cask (.github/scripts/district-ai-cask.sh), pushes it to a
+#   Then it writes the cask (.github/scripts/district-ai-cask.sh) and the bump's
+#   CHANGELOG.md line (.github/scripts/changelog-add.sh), pushes them to a
 #   `bump/district-ai-<version>-<build>` branch, and opens a pull request.
 #
 # ⛔ GITHUB_TOKEN TRIGGERS NO WORKFLOW BY A PUSH OR A PULL REQUEST, so the pull request's
@@ -146,9 +147,14 @@ jobs:
             exit 0
           fi
           .github/scripts/district-ai-cask.sh "$VERSION" "$BUILD" "$SHA256" >"$CASK"
+          # The bump's CHANGELOG line, in the same commit, so the release notes of the
+          # next signed tag (release.yml) carry it. VERSION has passed the generator's
+          # check above, so the line is only digits, dots and fixed text.
+          .github/scripts/changelog-add.sh CHANGELOG.md "$(date -u +%F)" Changed \
+            "\`district-ai\` $VERSION,$BUILD: District AI for Mac $VERSION ([release notes](https://github.com/$SOURCE/releases/tag/v$VERSION))."
           git diff --stat
           git switch --quiet -c "$branch"
-          git add "$CASK"
+          git add "$CASK" CHANGELOG.md
           git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
             commit --quiet -m "district-ai $VERSION,$BUILD" \
             -m "From $SOURCE's release v$VERSION: sha256 checked against SHA256SUMS and the asset digest, provenance attestation verified."
