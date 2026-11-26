@@ -6,6 +6,7 @@
 
 # Distronode Homebrew tap
 
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/17137/badge)](https://www.bestpractices.dev/projects/17137)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/distronode-corporation/homebrew-tap/badge)](https://scorecard.dev/viewer/?uri=github.com/distronode-corporation/homebrew-tap)
 
 The [Homebrew](https://brew.sh) tap for Distronode's apps and tools. It carries two
