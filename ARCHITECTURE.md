@@ -56,7 +56,7 @@ pull request to main
   |  a code owner approves; the default branch ruleset decides when it can merge
   v
 main
-  |----> release.yml (when CHANGELOG.md changed): signed tag YYYY.MM.DD.N + GitHub Release
+  |----> release.yml (CHANGELOG.md changed; on the push or daily): signed tag YYYY.MM.DD.N + GitHub Release
   |
   |  brew update (HTTPS)
   v

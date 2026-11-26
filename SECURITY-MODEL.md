@@ -60,10 +60,16 @@ install) runs on it before it merges.
 
 Homebrew reads no tags: `brew update` fetches `main` over HTTPS and every install is
 checked against its recipe's `sha256`. The signed tags are for anyone who wants to
-check a state of the tap independently of GitHub's account security.
+check that a state of the tap is one this repository's `release.yml` published, and
+that it has not been moved or rewritten since. They do not stand apart from GitHub
+account security: a change that reaches `main` through a compromised maintainer or
+owner account, and records a CHANGELOG line, is tagged and signed like any other, and
+the command below accepts it, because it checks the workflow's identity, not who
+approved the change. The review that gates `main` is what protects against that (see
+the assurance case below).
 
 [`release.yml`](.github/workflows/release.yml) tags each merge to `main` that changes
-CHANGELOG.md as `YYYY.MM.DD.N` (the UTC date, then a counter from 1) and signs the tag
+CHANGELOG.md (when the merge lands, or at its daily run if the merge started no run) as `YYYY.MM.DD.N` (the UTC date, then a counter from 1) and signs the tag
 keylessly with [gitsign](https://github.com/sigstore/gitsign). Sigstore's Fulcio issues
 a short-lived certificate for the workflow's own GitHub OIDC identity, and the signature
 is recorded in Sigstore's public Rekor transparency log, so there is no long-lived
@@ -93,9 +99,13 @@ above is the check.
 To compare the tap you have installed with a tag, run the same commands in Homebrew's
 own clone of the tap (`cd "$(brew --repository distronode-corporation/tap)"`), then
 check that `git rev-parse HEAD` equals `git rev-parse <tag>^{commit}`, that
-`git diff --quiet <tag>` exits 0 (no file differs from the tag, committed or not), and
-that `git status --porcelain --untracked-files=all` prints nothing (no extra files). Each tag's
-GitHub Release lists the CHANGELOG lines it added.
+`git diff --quiet <tag>` exits 0 (no tracked file differs from the tag, committed or
+not), and that `git status --porcelain --untracked-files=all --ignored` prints nothing
+(no extra files, including ones a local ignore rule hides). A file you created
+yourself, such as `.DS_Store` or a `coverage/` directory from the script tests, shows
+up there too: delete it, or confirm it is not under `Casks/` or `Formula/`, the only
+directories Homebrew reads recipes from. Each tag's GitHub Release lists the CHANGELOG
+lines it added.
 
 ## Assurance case
 
