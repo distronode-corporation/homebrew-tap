@@ -1,0 +1,160 @@
+name: Release
+
+# Signed release tags for the tap. Homebrew itself reads no tags: `brew update`
+# fetches `main`, and each install is protected by the recipe's pinned `sha256` (see
+# SECURITY-MODEL.md). A tag is a signed, verifiable record of one state of `main`, for
+# anyone who wants to check what they installed from against what this repository
+# published.
+#
+# When: every push to `main` that changes CHANGELOG.md (a bump, or any change that
+# records a CHANGELOG line), and on demand from `main`. A push that changes nothing in
+# CHANGELOG.md is covered by the next tag.
+#
+# What:
+# - `tag`: the next CalVer tag for today, `YYYY.MM.DD.N` (UTC, N counting from 1;
+#   .github/scripts/release.sh next-tag), an annotated tag on the pushed commit,
+#   signed keylessly with gitsign. Sigstore's Fulcio issues a short-lived certificate
+#   for this workflow's own GitHub OIDC identity, and the signature is recorded in
+#   Sigstore's public Rekor log; there is no long-lived signing key anywhere. The tag
+#   is verified with the exact command SECURITY-MODEL.md documents before it is
+#   pushed, so a tag that does not verify is never published. A commit that already
+#   has a release tag gets no second one.
+# - `release`: a GitHub Release for the tag, whose notes are the lines CHANGELOG.md
+#   gained since the previous tag (release.sh notes).
+#
+# Nothing here runs on a pull request, so no fork's code ever runs with these
+# permissions. Only `tag` can request an OIDC token. The tag ruleset already refuses
+# moving or deleting a tag once it exists.
+on:
+  push:
+    branches: [main]
+    paths: [CHANGELOG.md]
+  workflow_dispatch:
+
+permissions: {}
+
+# One release at a time: two runs counting today's tags at once would pick the same N.
+# GitHub keeps one run waiting and cancels an older waiting one; the newer run's tag
+# then carries the cancelled run's CHANGELOG lines in its notes, since the notes are
+# everything since the previous tag.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  tag:
+    name: signed tag
+    # Only this repository's `main`: a fork's copy of this workflow, or a dispatch from
+    # another branch, does nothing.
+    if: github.repository == 'distronode-corporation/homebrew-tap' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write # push the tag
+      id-token: write # the OIDC token gitsign exchanges for its signing certificate
+    env:
+      GITSIGN_VERSION: v0.18.0
+      GITSIGN_SHA256: 2bc625472a08fea3bb6a57982c7d8b4978d1032251d305ceef3bf2ded0ca4483
+      COMMIT: ${{ github.sha }}
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      previous: ${{ steps.tag.outputs.previous }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # every tag, to count today's and find the previous one
+          ref: ${{ github.sha }}
+
+      # sigstore/gitsign has no action on the organization's allowed list, so its
+      # release binary is downloaded and checked against the SHA-256 pinned above
+      # (the value its release's checksums.txt and GitHub's asset digest both list).
+      - name: Install gitsign
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/bin"
+          version="${GITSIGN_VERSION#v}"
+          curl -fsSL --proto '=https' -o "$RUNNER_TEMP/bin/gitsign" \
+            "https://github.com/sigstore/gitsign/releases/download/$GITSIGN_VERSION/gitsign_${version}_linux_amd64"
+          echo "$GITSIGN_SHA256  $RUNNER_TEMP/bin/gitsign" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/bin/gitsign"
+          "$RUNNER_TEMP/bin/gitsign" version
+
+      - name: Sign and verify the tag
+        id: tag
+        run: |
+          set -euo pipefail
+          # Release tags only: YYYY.MM.DD.N.
+          mapfile -t tags < <(git tag --list '[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9].*' | grep -E '^[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[1-9][0-9]*$' || true)
+          existing="$(git tag --points-at "$COMMIT" | grep -E '^[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[1-9][0-9]*$' | head -n 1 || true)"
+          if [ -n "$existing" ]; then
+            echo "::notice::$COMMIT is already tagged $existing. Nothing to release."
+            echo "tag=" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # The newest release tag that is an ancestor of this commit is the previous one.
+          previous="$(git describe --tags --abbrev=0 --match '[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9].*' "$COMMIT" 2>/dev/null || true)"
+          tag="$(.github/scripts/release.sh next-tag "$(date -u +%F)" ${tags[@]+"${tags[@]}"})"
+          echo "Tagging $COMMIT as $tag (previous release: ${previous:-none})"
+
+          # gitsign signs as git's x509 program. In GitHub Actions it finds the
+          # workflow's OIDC token on its own (ACTIONS_ID_TOKEN_REQUEST_URL).
+          git config --local gpg.format x509
+          git config --local gpg.x509.program "$RUNNER_TEMP/bin/gitsign"
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            tag --sign --message "$tag" "$tag" "$COMMIT"
+
+          # The command SECURITY-MODEL.md tells people to run, with the identity this
+          # workflow signs as.
+          "$RUNNER_TEMP/bin/gitsign" verify-tag "$tag" \
+            --certificate-identity "https://github.com/$GITHUB_REPOSITORY/.github/workflows/release.yml@refs/heads/main" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
+          # The token reaches git as a header for this one push, never the stored config.
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push --quiet origin "refs/tags/$tag"
+          echo "tag=$tag" >>"$GITHUB_OUTPUT"
+          echo "previous=$previous" >>"$GITHUB_OUTPUT"
+          echo "Pushed $tag, signed and verified."
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Embeds the Rekor entry, with its inclusion proof, in the signature, so
+          # verify-tag checks it there instead of searching the log, which can miss an
+          # entry made seconds earlier. Verification is no less strict.
+          GITSIGN_REKOR_MODE: offline
+
+  release:
+    name: GitHub Release
+    needs: tag
+    if: needs.tag.outputs.tag != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write # create the release
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.tag.outputs.tag }}
+      PREVIOUS: ${{ needs.tag.outputs.previous }}
+      COMMIT: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Create the release
+        run: |
+          set -euo pipefail
+          {
+            .github/scripts/release.sh notes "$PREVIOUS" "$COMMIT"
+            echo
+            echo "Signed with gitsign by this repository's release.yml. To verify the tag, see [Verifying a release](https://github.com/$GITHUB_REPOSITORY/blob/main/SECURITY-MODEL.md#verifying-a-release)."
+          } >"$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$TAG" \
+            --notes-file "$RUNNER_TEMP/notes.md" --latest
