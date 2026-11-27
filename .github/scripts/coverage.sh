@@ -64,14 +64,17 @@ resultset=coverage/.resultset.json
 total_relevant=0
 total_covered=0
 for f in "${measured[@]}"; do
-  read -r relevant covered < <(jq -r --arg f "$f" '
+  # Prints "<relevant> <covered> <missed>", where <missed> is the comma-separated line
+  # numbers no test ran, or "-" when there are none.
+  read -r relevant covered missed < <(jq -r --arg f "$f" '
     [.[] | .coverage[$f] | select(. != null) | (if type == "object" then .lines else . end)]
-    | if length == 0 then "0 0"
+    | if length == 0 then "0 0 -"
       else
         (.[0] | length) as $n
         | [range(0; $n) as $i | [.[] | .[$i]] | map(select(. != null))
-            | if length == 0 then empty else (add > 0) end]
-        | "\(length) \(map(select(.)) | length)"
+            | if length == 0 then empty else {line: ($i + 1), ran: (add > 0)} end]
+        | (map(select(.ran | not) | .line | tostring) | join(",")) as $missed
+        | "\(length) \(map(select(.ran)) | length) \(if $missed == "" then "-" else $missed end)"
       end' "$resultset")
   if ((relevant == 0)); then
     die "${f#"$root"/} has no measured lines; bashcov did not see it run."
@@ -79,6 +82,9 @@ for f in "${measured[@]}"; do
   total_relevant=$((total_relevant + relevant))
   total_covered=$((total_covered + covered))
   printf '%6.1f%%  %3d of %3d lines  %s\n' "$(jq -n "$covered * 100 / $relevant")" "$covered" "$relevant" "${f#"$root"/}"
+  if [ "$missed" != "-" ]; then
+    echo "         not run: line $missed"
+  fi
 done
 
 percent="$(jq -n "$total_covered * 100 / $total_relevant")"
