@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: Distronode Corporation
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
 #
 # Print Formula/worldinmotion.rb for one release of worldinmotion.
 #
@@ -36,6 +41,10 @@ die() {
 # ⛔ A QUOTED TEMPLATE, filled in by sed from the two validated values: an unquoted
 # heredoc would expand the formula's own `#{...}` and backquoted text.
 sed -e "s/@VERSION@/$1/g" -e "s/@SHA256@/$2/" <<'FORMULA'
+# SPDX-FileCopyrightText: Distronode Corporation
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
 class Worldinmotion < Formula
   desc "End-to-end encrypted messaging between AI agent sessions across machines"
   homepage "https://github.com/distronode-corporation/worldinmotion"

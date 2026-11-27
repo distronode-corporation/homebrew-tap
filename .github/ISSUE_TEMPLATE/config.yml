@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Distronode Corporation
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
 # No blank issues: everything goes through the structured bug report form, or one of
 # the links below. The tracker is for problems installing, upgrading or removing the
 # casks and the formula; bugs in an app or tool itself go to its repository (see

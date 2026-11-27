@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Distronode Corporation
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
 name: CodeQL
 
 # Code scanning in ADVANCED setup, the same shape as the `actions` job in district-ios,

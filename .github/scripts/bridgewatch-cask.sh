@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: Distronode Corporation
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
 #
 # Print Casks/bridgewatch.rb for one release of bridgewatch.
 #
@@ -37,6 +42,10 @@ die() {
 # ⛔ A QUOTED TEMPLATE, filled in by sed from the two validated values: an unquoted
 # heredoc would run any backquoted text in the cask's comments as a command.
 sed -e "s/@VERSION@/$1/" -e "s/@SHA256@/$2/" <<'CASK'
+# SPDX-FileCopyrightText: Distronode Corporation
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
 cask "bridgewatch" do
   version "@VERSION@"
   sha256 "@SHA256@"
