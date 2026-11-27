@@ -18,7 +18,7 @@ name: Audit
 # - `lint`: ShellCheck over every shell script and actionlint over every workflow.
 # - `script tests`: .github/scripts/test-scripts.sh (each generator reproduces its
 #   committed recipe and refuses bad input; the CHANGELOG and release helpers) under
-#   bashcov, failing below 80 percent line coverage of the measured scripts.
+#   bashcov, failing below 100 percent line coverage of the measured scripts.
 # - `gitleaks`: secrets anywhere in the history, not just the tip.
 # - `hygiene`: the org's repository rules (no em or en dashes) and the shape of Casks/
 #   and Formula/.
@@ -287,7 +287,7 @@ jobs:
 
   # The scripts the bump and release workflows run are tested and measured:
   # .github/scripts/test-scripts.sh under bashcov, through coverage.sh, which fails
-  # below 80 percent line coverage of the measured scripts and prints each one's figure.
+  # below 100 percent line coverage of the measured scripts and prints each one's figure.
   # bashcov and SimpleCov (its one dependency) are pure Ruby gems, downloaded at pinned
   # versions, checked against pinned SHA-256s and installed offline into a scratch
   # GEM_HOME with the image's Ruby.

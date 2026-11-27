@@ -15,7 +15,7 @@
 # line-by-line view.
 set -euo pipefail
 
-floor=80
+floor=100
 
 die() {
   echo "FATAL - $*" >&2

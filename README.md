@@ -124,7 +124,7 @@ use them with, so we are asking before we build anything:
 | `.github/scripts/worldinmotion-formula.sh` | Writes `Formula/worldinmotion.rb`; the one place the formula's text lives. |
 | `.github/workflows/release.yml` | A merge to `main` that changes CHANGELOG.md (on the push; a daily run tags `main`'s head for a merge that started no run): a `YYYY.MM.DD.N` tag signed keylessly with gitsign, and a GitHub Release listing the CHANGELOG lines since the previous tag. [SECURITY-MODEL.md](SECURITY-MODEL.md#verifying-a-release) has the command that verifies a tag. |
 | `.github/scripts/changelog-add.sh`, `release.sh` | The bump workflows' CHANGELOG line, and the release workflow's tag name and notes. |
-| `.github/scripts/test-scripts.sh`, `coverage.sh` | Tests for every script here, run under bashcov with an 80 percent line coverage floor. |
+| `.github/scripts/test-scripts.sh`, `coverage.sh` | Tests for every script here, run under bashcov with an 100 percent line coverage floor. |
 | `.github/workflows/scorecard.yml` | OpenSSF Scorecard, the result behind the badge above. |
 | `.github/workflows/codeql.yml` | CodeQL code scanning of the workflows. |
 | `.github/workflows/review-threads.yml`, `public-hygiene.yml` | The organization's review threads check and public text check. |

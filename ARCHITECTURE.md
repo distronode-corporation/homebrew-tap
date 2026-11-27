@@ -76,7 +76,7 @@ request to main" and goes through the same checks.
 | Install, `brew test`, uninstall | `audit.yml`, `Linux install and test` | as above | every formula on Linux |
 | Online audit, livecheck, install, codesign and Gatekeeper, launch, `uninstall --zap`; formula install and test | `audit.yml`, `macOS install and zap` | as above | every cask and formula on macOS |
 | ShellCheck, actionlint | `audit.yml`, `lint` | as above | `.github/scripts/*.sh`, every workflow and its `run:` blocks |
-| Script tests, 80 percent line coverage | `audit.yml`, `script tests` | as above | the generators, `changelog-add.sh`, `release.sh` |
+| Script tests, 100 percent line coverage | `audit.yml`, `script tests` | as above | the generators, `changelog-add.sh`, `release.sh` |
 | zizmor | `audit.yml`, `zizmor` | as above | the workflows |
 | gitleaks | `audit.yml`, `gitleaks` | as above | the whole git history |
 | No en or em dashes; `Casks/` and `Formula/` hold only recipes | `audit.yml`, `hygiene` | as above | every tracked file |
@@ -96,4 +96,4 @@ default branch ruleset, not by the workflows.
 | `.github/scripts/changelog-add.sh` | the bump workflows | adds one line to CHANGELOG.md under today's date and a Keep a Changelog section |
 | `.github/scripts/release.sh` | `release.yml` | the next `YYYY.MM.DD.N` tag, and the release notes (the CHANGELOG lines since the previous tag) |
 | `.github/scripts/test-scripts.sh` | `audit.yml`, `script tests` | the tests for every script above and the three generators |
-| `.github/scripts/coverage.sh` | `audit.yml`, `script tests` | runs the tests under bashcov and enforces the 80 percent floor |
+| `.github/scripts/coverage.sh` | `audit.yml`, `script tests` | runs the tests under bashcov and enforces the 100 percent floor |

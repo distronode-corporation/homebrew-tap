@@ -45,6 +45,7 @@ lines this file gained since the previous tag, so no entry is left out of the no
 
 ### Changed
 
+- `script tests` job in `audit.yml`: the line coverage floor is 100 percent (from 80), and `coverage.sh` names the lines no test ran.
 - The bump workflows write the bump's CHANGELOG line in the bump commit, with
   `.github/scripts/changelog-add.sh`.
 - This file: entries are dated by the day they were written, the `[Unreleased]`
