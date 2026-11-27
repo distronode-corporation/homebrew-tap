@@ -40,7 +40,10 @@ entry="$4"
 [ -f "$file" ] || die "'$file' is not a file."
 [[ "$day" =~ ^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$ ]] || die "date '$day' is not YYYY-MM-DD."
 case "$section" in
-  Added | Changed | Deprecated | Removed | Fixed | Security) ;;
+  # The pattern and its empty body on two lines: xtrace never reports a case pattern,
+  # so bashcov counts a pattern line holding `;;` as code that never ran.
+  Added | Changed | Deprecated | Removed | Fixed | Security)
+    ;;
   *) die "section '$section' is not one of Added, Changed, Deprecated, Removed, Fixed, Security." ;;
 esac
 [ -n "$entry" ] || die "the entry is empty."

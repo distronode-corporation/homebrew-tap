@@ -57,8 +57,9 @@ notes() {
   [[ "$previous" =~ $tag_re ]] || die "previous tag '$previous' is not YYYY.MM.DD.N."
   git rev-parse --verify --quiet "refs/tags/$previous" >/dev/null || die "tag $previous is not in this repository."
   # Added lines only: `+` lines of a zero-context diff, minus the `+++` file header.
-  lines="$(git diff --no-color --unified=0 "refs/tags/$previous" "$commit" -- "$changelog" |
-    sed -n -e '/^+++ /d' -e 's/^+//p')"
+  # One line: xtrace reports a pipeline split across lines on its last line only, so
+  # bashcov would count the first as never run.
+  lines="$(git diff --no-color --unified=0 "refs/tags/$previous" "$commit" -- "$changelog" | sed -n -e '/^+++ /d' -e 's/^+//p')"
   if [ -z "$lines" ]; then
     echo "No $changelog entries since $previous."
     return

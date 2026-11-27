@@ -117,7 +117,7 @@ script tests, which CI runs as the `lint` and `script tests` jobs:
 shellcheck --severity=style .github/scripts/*.sh
 actionlint
 .github/scripts/test-scripts.sh
-.github/scripts/coverage.sh   # needs bashcov and jq; fails below 80 percent
+.github/scripts/coverage.sh   # needs bashcov and jq; fails below 100 percent
 ```
 
 `test-scripts.sh` needs only bash, git and the usual text tools. It regenerates every
@@ -194,7 +194,7 @@ pull request and once a week:
 - **zizmor:** static analysis of the workflows. Actions are pinned to a full commit SHA.
 - **lint:** ShellCheck over `.github/scripts/*.sh` and actionlint over the workflows.
 - **script tests:** `test-scripts.sh` under bashcov; fails on any failing test or below
-  80 percent line coverage of the measured scripts.
+  100 percent line coverage of the measured scripts.
 - **gitleaks:** secrets anywhere in the history.
 - **hygiene:** no en or em dashes in any tracked file (use commas, periods or
   parentheses), and `Casks/` and `Formula/` hold only `.rb` files.
