@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Distronode Corporation
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
 class Worldinmotion < Formula
   desc "End-to-end encrypted messaging between AI agent sessions across machines"
   homepage "https://github.com/distronode-corporation/worldinmotion"

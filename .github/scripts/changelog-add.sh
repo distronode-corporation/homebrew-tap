@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: Distronode Corporation
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
 #
 # Add one entry to CHANGELOG.md, under a dated heading and a Keep a Changelog section.
 #

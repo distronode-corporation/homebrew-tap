@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Distronode Corporation
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
 cask "bridgewatch" do
   version "2.2.0"
   sha256 "2d8f23c72f289a2b843dc6f1c5b4eb30acdaf778426ea8fd938bfbfa551bc8c1"

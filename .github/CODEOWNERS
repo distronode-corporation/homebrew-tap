@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Distronode Corporation
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
 # Every path is owned, so a pull request always requests a review.
 #
 # CODEOWNERS only has teeth behind a branch protection rule or ruleset with

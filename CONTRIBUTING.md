@@ -17,6 +17,8 @@ the roles and how a change is accepted are in the organization's
 [GOVERNANCE.md](https://github.com/distronode-corporation/.github/blob/main/GOVERNANCE.md),
 which applies here.
 
+New here? Issues labelled [good first issue](https://github.com/distronode-corporation/homebrew-tap/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22) are small, well scoped and need no access beyond this repository.
+
 ## Setup
 
 You need [Homebrew](https://brew.sh) (macOS or Linux) and git. Homebrew works on its own

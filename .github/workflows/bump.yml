@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Distronode Corporation
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
 name: Bump district-ai
 
 # Proposes Casks/district-ai.rb for the latest GitHub Release of District AI for macOS
