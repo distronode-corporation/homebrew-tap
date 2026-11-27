@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Distronode Corporation
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
 cask "district-ai" do
   version "3.3.0,20102"
   sha256 "420881909e012ca7f9a58fec9934f35c96733accb8cfaae1c99f8bc451b93702"

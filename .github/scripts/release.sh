@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: Distronode Corporation
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
 #
 # The two decisions release.yml makes, kept here so they are tested:
 #

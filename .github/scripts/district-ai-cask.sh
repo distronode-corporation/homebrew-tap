@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: Distronode Corporation
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
 #
 # Print Casks/district-ai.rb for one release of District AI for macOS.
 #
@@ -32,6 +37,10 @@ die() {
 # ⛔ A QUOTED TEMPLATE, filled in by sed from the three validated values: an unquoted
 # heredoc would run any backquoted text in the cask's comments as a command.
 sed -e "s/@VERSION@/$1/" -e "s/@BUILD@/$2/" -e "s/@SHA256@/$3/" <<'CASK'
+# SPDX-FileCopyrightText: Distronode Corporation
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
 cask "district-ai" do
   version "@VERSION@,@BUILD@"
   sha256 "@SHA256@"
